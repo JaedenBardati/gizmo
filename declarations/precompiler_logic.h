@@ -5,6 +5,25 @@
 /*------- Things that are always recommended (this must follow loading GIZMO_config.h!) -------*/
 /* also many logical options to force 'parent' or 'top-level' flags to be enabled for the appropriate methods, if we have enabled something using those methods */
 
+/* CAAR top-level flags */
+#if defined(CAAR_TOPLEVEL_FLAG)
+#define USE_TIMESTEP_DILATION_FOR_ZOOMS
+#define MERGESPLIT_HARDCODE_MIN_MASS (0.5e3)
+#define MERGESPLIT_HARDCODE_MAX_MASS (2.e3)
+#define SINGLE_STAR_AND_SSP_HYBRID_MODEL_DEFAULTS (1.0)
+#define SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM 1
+#define SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM_SPECIALBOUNDARIES 3
+#define RT_SPEEDOFLIGHT_REDUCTION (1.0)
+#if !defined(PMGRID)
+#define PMGRID 128
+#endif
+#if !defined(UNIFORM_RESOLUTION_MULTIPLIER)
+#define UNIFORM_RESOLUTION_MULTIPLIER (1.0) // < 1 is downsampling/merging (decrease in resolution, increase in delta m), > 1 is upsampling/splitting (increase in resolution, decrease in delta m), uniform over all particles
+#endif 
+// also should enable USE_FFTW3, OPENMP=2 to match Frontera runs; also DEBUG and/or OUTPUT_ADDITIONAL_RUNINFO for debugging and extra prints if needed (likely not on production runs)
+// todo: make CAAR_TOPLEVEL_FLAG=2 be the targeted resolution runs (and add this logic in merge_split.cc)
+#endif
+
 /* macro definition we will use throughout below, make sure this is defined up-top here */
 #define DO_PREPROCESSOR_EXPAND_(VAL)  VAL ## 1
 #define EXPAND_PREPROCESSOR_(VAL)     DO_PREPROCESSOR_EXPAND_(VAL) /* checks for a NON-ZERO value of this parameter */
