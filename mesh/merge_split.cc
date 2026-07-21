@@ -115,6 +115,12 @@ int does_particle_need_to_be_split(int i)
 /*! A multiplicative factor that determines the target mass of a particle for the (de)refinement routines; split_key tells you if this is for a split (1) or merge (0) */
 double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
 {
+#if defined(UNIFORM_RESOLUTION_MULTIPLIER)
+    double uniform_multipler = UNIFORM_RESOLUTION_MULTIPLIER;
+#else
+    double uniform_multipler = 1.0;
+#endif
+
     double ref_factor=1.0;
 #if defined(SINGLE_STAR_AND_SSP_HYBRID_MODEL)
     ref_factor = 1; // need to determine appropriate desired refinement criterion, if resolution is not strictly pre-defined //
@@ -204,7 +210,7 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
 #else
         ref_factor = DMAX(M_min_absolute / normal_median_mass, DMIN( M_target / normal_median_mass , 1));
 #endif
-        return ref_factor;
+        return ref_factor / uniform_multipler;
     }
 #endif
     
@@ -241,7 +247,7 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
         double M_target = DMAX( mcrit_0, m_ref_mJ ) / UNIT_MASS_IN_SOLAR; // enforce minimum refinement to 7000 Msun, and convert to code units, compare to 0.001xJeans mass, which is designed to target desired levels
         double normal_median_mass = All.MaxMassForParticleSplit / 3.; // code median mass from ICs
         ref_factor = DMAX(1.e-30, DMIN( M_target / normal_median_mass , 1)); // this shouldn't get larger than unity since that would exceed the normal maximum mass
-        return ref_factor; // return it
+        return ref_factor / uniform_multipler; // return it
     }
 #endif
     
@@ -258,11 +264,11 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
         double dx = DMIN(DMAX(dx0_pc,dxmin_pc),dxmax_pc) / (All.cf_atime * UNIT_LENGTH_IN_PC); // set target dx in code units
         double m_target = CellP[i].Density * dx*dx*dx; // equivalent cell mass
         ref_factor = DMIN( m_target/(All.MaxMassForParticleSplit/3.) , 1.); // return this target mass or unity
-        return ref_factor;
+        return ref_factor / uniform_multipler;
     }
 #endif
 
-    return ref_factor;
+    return ref_factor / uniform_multipler;
 }
 
 
