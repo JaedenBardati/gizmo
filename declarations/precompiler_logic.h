@@ -5,6 +5,11 @@
 /*------- Things that are always recommended (this must follow loading GIZMO_config.h!) -------*/
 /* also many logical options to force 'parent' or 'top-level' flags to be enabled for the appropriate methods, if we have enabled something using those methods */
 
+/* macro definition we will use throughout below, make sure this is defined up-top here */
+#define DO_PREPROCESSOR_EXPAND_(VAL)  VAL ## 1
+#define EXPAND_PREPROCESSOR_(VAL)     DO_PREPROCESSOR_EXPAND_(VAL) /* checks for a NON-ZERO value of this parameter */
+#define CHECK_IF_PREPROCESSOR_HAS_NUMERICAL_VALUE_(VAL) !(EXPAND_PREPROCESSOR_(VAL) == 1) /* returns True if a non-zero int value of VAL is set */
+
 /* CAAR top-level flags */
 #if defined(CAAR_TOPLEVEL_FLAG)
 #define USE_TIMESTEP_DILATION_FOR_ZOOMS
@@ -14,20 +19,20 @@
 #define SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM 1
 #define SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM_SPECIALBOUNDARIES 3
 #define RT_SPEEDOFLIGHT_REDUCTION (1.0)
-#if !defined(PMGRID)
-#define PMGRID 128
-#endif
 #if !defined(UNIFORM_RESOLUTION_MULTIPLIER)
 #define UNIFORM_RESOLUTION_MULTIPLIER (1.0) // < 1 is downsampling/merging (decrease in resolution, increase in delta m), > 1 is upsampling/splitting (increase in resolution, decrease in delta m), uniform over all particles
 #endif 
-// also should enable USE_FFTW3, OPENMP=2 to match Frontera runs; also DEBUG and/or OUTPUT_ADDITIONAL_RUNINFO for debugging and extra prints if needed (likely not on production runs)
-// todo: make CAAR_TOPLEVEL_FLAG=2 be the targeted resolution runs (and add this logic in merge_split.cc)
+// set CAAR_TOPLEVEL_FLAG<=0 for phils mergesplit (non-powerlaw code) for debugging with mine
+#if CAAR_TOPLEVEL_FLAG == 1
+#define OVERRIDE_MASS_RESOLUTION_WITH_PIECEWISE_POWERLAW 
+#define PIECEWISE_POWERLAW_MASS_RESOLUTION_ROUT 4.0e3, 6.0e-3, 2.0e-3 // outer radii of the piecewise powerlaw refinement regions (in pc)
+#define PIECEWISE_POWERLAW_MASS_RESOLUTION_RIN 0.3, 2.0e-3, 7.0e-6 // inner radii of the piecewise powerlaw refinement regions (in pc)
+#define PIECEWISE_POWERLAW_MASS_RESOLUTION_SLOPES 1.5, 4.0, 2.0 // slopes of the piecewise powerlaw refinement regions
+#elif CAAR_TOPLEVEL_FLAG >= 2
+#error "Not yet implemented CAAR_TOPLEVEL_FLAG >= 2." // todo: make CAAR_TOPLEVEL_FLAG=2 be the targeted resolution runs 
 #endif
-
-/* macro definition we will use throughout below, make sure this is defined up-top here */
-#define DO_PREPROCESSOR_EXPAND_(VAL)  VAL ## 1
-#define EXPAND_PREPROCESSOR_(VAL)     DO_PREPROCESSOR_EXPAND_(VAL) /* checks for a NON-ZERO value of this parameter */
-#define CHECK_IF_PREPROCESSOR_HAS_NUMERICAL_VALUE_(VAL) !(EXPAND_PREPROCESSOR_(VAL) == 1) /* returns True if a non-zero int value of VAL is set */
+// also should enable PMGRID=128, USE_FFTW3, OPENMP=2 in Config.sh to match Frontera runs; also add DEBUG and/or OUTPUT_ADDITIONAL_RUNINFO for debugging and extra prints if needed (likely not on production runs)
+#endif
 
 /* set default slope limiters */
 #if !defined(SLOPE_LIMITER_TOLERANCE)
