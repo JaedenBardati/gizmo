@@ -13,15 +13,27 @@
 /* CAAR top-level flags */
 #if defined(CAAR_TOPLEVEL_FLAG)
 #define USE_TIMESTEP_DILATION_FOR_ZOOMS
+#ifndef MERGESPLIT_HARDCODE_MIN_MASS
 #define MERGESPLIT_HARDCODE_MIN_MASS (0.5e3)
+#endif
+#ifndef MERGESPLIT_HARDCODE_MAX_MASS
 #define MERGESPLIT_HARDCODE_MAX_MASS (2.e3)
+#endif
+#ifndef SINGLE_STAR_AND_SSP_HYBRID_MODEL_DEFAULTS
 #define SINGLE_STAR_AND_SSP_HYBRID_MODEL_DEFAULTS (1.0)
+#endif
+#ifndef SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM
 #define SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM 1
+#endif
+#ifndef SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM_SPECIALBOUNDARIES
 #define SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM_SPECIALBOUNDARIES 3
+#endif
+#ifndef RT_SPEEDOFLIGHT_REDUCTION
 #define RT_SPEEDOFLIGHT_REDUCTION (1.0)
+#endif
 #if !defined(UNIFORM_RESOLUTION_MULTIPLIER)
 #define UNIFORM_RESOLUTION_MULTIPLIER (1.0) // < 1 is downsampling/merging (decrease in resolution, increase in delta m), > 1 is upsampling/splitting (increase in resolution, decrease in delta m), uniform over all particles
-#endif 
+#endif
 // set CAAR_TOPLEVEL_FLAG<=0 for phils mergesplit (non-powerlaw code) for debugging with mine
 #if CAAR_TOPLEVEL_FLAG == 1
 #define OVERRIDE_MASS_RESOLUTION_WITH_PIECEWISE_POWERLAW 
