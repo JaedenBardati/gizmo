@@ -1250,6 +1250,9 @@ int get_timestep_bin(integertime ti_step)
 #ifdef WAKEUP
 void process_wake_ups(void)
 {
+#ifdef FORCE_EQUAL_TIMESTEPS
+    return;
+#endif
     int i, n, max_time_bin_active, bin, binold, prev, next; long long ntot;
     integertime dt_bin, ti_next_for_bin, ti_next_kick, ti_next_kick_global;
 
