@@ -80,7 +80,7 @@ void find_timesteps(void)
     for(i = FirstActiveParticle, ti_min = TIMEBASE; i >= 0; i = NextActiveParticle[i])
     {
 #if defined(FORCE_EQUAL_TIMESTEPS)
-        ti_step = get_timestep(i, &aphys, 0);
+        ti_step = (integertime)(((double) get_timestep(i, &aphys, 0)) / timestep_dilation_factor(i,0)); // get the timestep for this particle, and apply any dilation factor -- we're trying to find the minimum active BIN, not the minimum active timestep in float
 #elif defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
         if(is_particle_a_special_zoom_target(i)==0) {ti_step = P[i].dt_step;} else {ti_step = TIMEBASE;} // set the source particle to have a timestep no more than 4 bins larger than the previous smallest active particle/cell bin timestep
 #endif
@@ -96,7 +96,7 @@ void find_timesteps(void)
     integertime ti_min_glob, ti_max_glob;
     MPI_Allreduce(&ti_step, &ti_min_glob, 1, MPI_TYPE_TIME, MPI_MIN, MPI_COMM_WORLD);
     MPI_Allreduce(&ti_stepmax, &ti_max_glob, 1, MPI_TYPE_TIME, MPI_MAX, MPI_COMM_WORLD);
-#if defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
+#if !defined(FORCE_EQUAL_TIMESTEPS) && defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
 #if defined(USE_TIMESTEP_DILATION_FOR_ZOOMS)
     ti_min_glob <<= 2; // 2^N times min timestep - shift to N bins higher
 #else
@@ -111,13 +111,13 @@ void find_timesteps(void)
     for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i])
     {
 #ifdef FORCE_EQUAL_TIMESTEPS
-        ti_step = ti_min_glob;
+        ti_step = ti_min_glob; /* note that the dilation factor is already applied to ti_min_glob above - re-applying here would double-count it */
 #else
         ti_step = get_timestep(i, &aphys, 0);
-#endif
         ti_step = (integertime)(((double)ti_step) / TIMESTEP_DILATION_FACTOR(i,0));
+#endif
         
-#if defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
+#if !defined(FORCE_EQUAL_TIMESTEPS) && defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
         if(ti_step < 0) {ti_step = ti_min_glob;}
         if(is_particle_a_special_zoom_target(i)) {
             if(ti_step > ti_min_glob) {ti_step = ti_min_glob;}
@@ -1251,7 +1251,7 @@ int get_timestep_bin(integertime ti_step)
 void process_wake_ups(void)
 {
 #ifdef FORCE_EQUAL_TIMESTEPS
-    return;
+    return; /* no wakeups if all particles are on the same timestep */
 #endif
     int i, n, max_time_bin_active, bin, binold, prev, next; long long ntot;
     integertime dt_bin, ti_next_for_bin, ti_next_kick, ti_next_kick_global;
