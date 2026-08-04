@@ -129,14 +129,14 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
      of time. The number of lines must match in all arrays. 
      
      Target mass resolution shape (at t = infinity):
-       * PIECEWISE_POWERLAW_MASS_RESOLUTION_ROUT="5.0, 1.0"                    // comma-separated list of outer radii for each refinement phase in pc; must be in decreasing order
-       * PIECEWISE_POWERLAW_MASS_RESOLUTION_RIN="1.0, 0.25"                    // comma-separated list of inner radii for each refinement phase in pc; must be in decreasing order
-       * PIECEWISE_POWERLAW_MASS_RESOLUTION_SLOPES="3.0, 2.0"                  // comma-separated list of slopes for each refinement phase
+       * PIECEWISE_POWERLAW_MASS_RESOLUTION_ROUT=5.0, 1.0                    // comma-separated list of outer radii for each refinement phase in pc; must be in decreasing order
+       * PIECEWISE_POWERLAW_MASS_RESOLUTION_RIN=1.0, 0.25                    // comma-separated list of inner radii for each refinement phase in pc; must be in decreasing order
+       * PIECEWISE_POWERLAW_MASS_RESOLUTION_SLOPES=3.0, 2.0                  // comma-separated list of slopes for each refinement phase
      
      How the target mass resolution is reached in time (by default, no time-dependent refinement is applied):
-       * (optional) PIECEWISE_POWERLAW_MASS_RESOLUTION_SPEEDS="3.0, 3.0"       // comma-separated list of speeds for each refinement phase; larger = faster; 0.64 ~ 1 split in 5 dynamical times, set to zero if you want to disable the time-dependent refinement for a given phase
-       * (optional) PIECEWISE_POWERLAW_MASS_RESOLUTION_TIMEPOWER="1.5, 1.5"    // comma-separated list of steepness for each refinement phase (in time); larger = steeper refinement; it is the power of the radius in the dynamical time; i.e., beta in tdyn(r)=A*r^beta; must be >0
-       * (optional) PIECEWISE_POWERLAW_MASS_RESOLUTION_TDELAYS="0.0, 0.0"      // comma-separated list of delay times after each refinement phase (in code time units), by default no delay between phases
+       * (optional) PIECEWISE_POWERLAW_MASS_RESOLUTION_SPEEDS=3.0, 3.0       // comma-separated list of speeds for each refinement phase; larger = faster; 0.64 ~ 1 split every 5 dynamical times at reff (with default beta=1.5, 1 split per orbit is ~0.8, 1 split per free fall is ~4.5), set to zero if you want to disable the time-dependent refinement for a given phase
+       * (optional) PIECEWISE_POWERLAW_MASS_RESOLUTION_TIMEPOWER=1.5, 1.5    // comma-separated list of steepness for each refinement phase (in time); larger = steeper refinement; it is the power of the radius in the dynamical time; i.e., beta in tdyn(r)=A*r^beta; must be >0
+       * (optional) PIECEWISE_POWERLAW_MASS_RESOLUTION_TDELAYS=0.0, 0.0      // comma-separated list of delay times after each refinement phase (in code time units), by default no delay between phases
        
        * (optional) PIECEWISE_POWERLAW_MASS_RESOLUTION_TINIT_DELAY=(0.0)       // scalar delay after TimeBegin to wait before starting first phase, code time units
        * (optional) PIECEWISE_POWERLAW_MASS_RESOLUTION_LEAKYRATIO=(3.0)        // scalar ratio of the maximum end of the leaky slope (constrained at reff) to the minimum end (at rsink); only affects the refinement if time refinement

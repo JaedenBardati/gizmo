@@ -42,6 +42,10 @@
 #endif
 // also should enable PMGRID=128, USE_FFTW3, OPENMP=2 in Config.sh to match Frontera runs; also add DEBUG and/or OUTPUT_ADDITIONAL_RUNINFO for debugging and extra prints if needed (likely not on production runs)
 #endif
+#if defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM) && defined(PARTICLE_MERGE_SPLIT_TO_TARGET_ASAP) //top level flag for jumping asap to target mass resolution (about 1 split/merge per timestep) for e.g. setting up ics
+#define FORCE_EQUAL_TIMESTEPS
+#define MINIMUM_TIMESTEPS_BEFORE_MERGESPLIT 0
+#endif
 
 /* set default slope limiters */
 #if !defined(SLOPE_LIMITER_TOLERANCE)
