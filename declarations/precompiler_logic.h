@@ -31,9 +31,6 @@
 #ifndef RT_SPEEDOFLIGHT_REDUCTION
 #define RT_SPEEDOFLIGHT_REDUCTION (1.0)
 #endif
-#if !defined(UNIFORM_RESOLUTION_MULTIPLIER)
-#define UNIFORM_RESOLUTION_MULTIPLIER (1.0) // < 1 is downsampling/merging (decrease in resolution, increase in delta m), > 1 is upsampling/splitting (increase in resolution, decrease in delta m), uniform over all particles
-#endif
 // set CAAR_TOPLEVEL_FLAG<=0 for phils mergesplit (non-powerlaw code) for debugging with mine
 #if CAAR_TOPLEVEL_FLAG == 1
 #define OVERRIDE_MASS_RESOLUTION_WITH_PIECEWISE_POWERLAW 

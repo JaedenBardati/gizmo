@@ -115,12 +115,6 @@ int does_particle_need_to_be_split(int i)
 /*! A multiplicative factor that determines the target mass of a particle for the (de)refinement routines; split_key tells you if this is for a split (1) or merge (0) */
 double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
 {
-#if defined(UNIFORM_RESOLUTION_MULTIPLIER)
-    double uniform_multipler = UNIFORM_RESOLUTION_MULTIPLIER;
-#else
-    double uniform_multipler = 1.0;
-#endif
-
 #if defined(OVERRIDE_MASS_RESOLUTION_WITH_PIECEWISE_POWERLAW) && defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
     /*
      Customizable piecewise power law mass resolution around central object
@@ -156,8 +150,7 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
     
     The r_eff(t_sim) used here was derived by assuming a "zoom-in rate" dlog(r_eff)/dt_sim = 1/(tdyn(r_eff)*refinement_speed) with some power law relation for tdyn(r_eff).
     
-    Note that this is normalized such that the target particle mass is All.MaxMassForParticleSplit at rout_pc[0]. You can change this with MERGESPLIT_HARDCODE_MAX_MASS.
-    You can also make uniform adjustments with UNIFORM_RESOLUTION_MULTIPLIER. 
+    Note that this is normalized such that the target particle mass is All.MaxMassForParticleSplit at rout_pc[0]. You can change this manually with MERGESPLIT_HARDCODE_MAX_MASS or UNIFORM_RESOLUTION_MULTIPLIER.
     */
     #ifndef PIECEWISE_POWERLAW_MASS_RESOLUTION_ROUT
     #error "If you turn on the piecewise power law mass resolution override, you must also define an array for PIECEWISE_POWERLAW_MASS_RESOLUTION_ROUT."
@@ -193,7 +186,7 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
     #endif
 
     #if defined(PIECEWISE_POWERLAW_MASS_RESOLUTION_TIMEPOWER)
-    constexpr double refinement_timepower[] = {PIECEWISE_POWERLAW_MASS_RESOLUTION_TIMEPOWER}; // larger = steeper refinement; beta in tdyn(r)=A*r^beta; must be >0
+    constexpr double refinement_timepower[] = { PIECEWISE_POWERLAW_MASS_RESOLUTION_TIMEPOWER }; // larger = steeper refinement; beta in tdyn(r)=A*r^beta; must be >0
     static_assert(sizeof(rout_pc) == sizeof(refinement_timepower), "Piecewise powerlaw mass resolution arrays must be the same size!");
     #else
     constexpr FillArrayWithDefaultAtCompileTime refinement_timepower_storage(1.5);
@@ -368,7 +361,7 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
     }
     #endif
 
-    return DMAX(ftarget, fmin) / uniform_multipler;
+    return DMAX(ftarget, fmin);
 
     /*** end of piecewise powerlaw mass resolution ***/
 #endif
@@ -462,7 +455,7 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
 #else
         ref_factor = DMAX(M_min_absolute / normal_median_mass, DMIN( M_target / normal_median_mass , 1));
 #endif
-        return ref_factor / uniform_multipler;
+        return ref_factor;
     }
 #endif
     
@@ -499,7 +492,7 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
         double M_target = DMAX( mcrit_0, m_ref_mJ ) / UNIT_MASS_IN_SOLAR; // enforce minimum refinement to 7000 Msun, and convert to code units, compare to 0.001xJeans mass, which is designed to target desired levels
         double normal_median_mass = All.MaxMassForParticleSplit / 3.; // code median mass from ICs
         ref_factor = DMAX(1.e-30, DMIN( M_target / normal_median_mass , 1)); // this shouldn't get larger than unity since that would exceed the normal maximum mass
-        return ref_factor / uniform_multipler; // return it
+        return ref_factor; // return it
     }
 #endif
     
@@ -516,11 +509,11 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
         double dx = DMIN(DMAX(dx0_pc,dxmin_pc),dxmax_pc) / (All.cf_atime * UNIT_LENGTH_IN_PC); // set target dx in code units
         double m_target = CellP[i].Density * dx*dx*dx; // equivalent cell mass
         ref_factor = DMIN( m_target/(All.MaxMassForParticleSplit/3.) , 1.); // return this target mass or unity
-        return ref_factor / uniform_multipler;
+        return ref_factor;
     }
 #endif
 
-    return ref_factor / uniform_multipler;
+    return ref_factor;
 }
 
 
