@@ -959,15 +959,13 @@ void init(void)
         if(mpi_splitmerge_readmax <= 0) {All.MaxMassForParticleSplit  = 3.01 * mpi_mass_max;} else {All.MaxMassForParticleSplit = mpi_splitmerge_readmax;}
 #ifdef MERGESPLIT_HARDCODE_MAX_MASS
         All.MaxMassForParticleSplit = MERGESPLIT_HARDCODE_MAX_MASS;
-#ifdef UNIFORM_RESOLUTION_MULTIPLIER
-        All.MaxMassForParticleSplit = All.MaxMassForParticleSplit / UNIFORM_RESOLUTION_MULTIPLIER;  // < 1 is downsampling/merging (decrease in resolution, increase in delta m), > 1 is upsampling/splitting (increase in resolution, decrease in delta m), uniform over all particles
-#endif
 #endif
 #ifdef MERGESPLIT_HARDCODE_MIN_MASS
         All.MinMassForParticleMerger = MERGESPLIT_HARDCODE_MIN_MASS;
-#ifdef UNIFORM_RESOLUTION_MULTIPLIER
-        All.MinMassForParticleMerger = All.MinMassForParticleMerger / UNIFORM_RESOLUTION_MULTIPLIER;  // < 1 is downsampling/merging (decrease in resolution, increase in delta m), > 1 is upsampling/splitting (increase in resolution, decrease in delta m), uniform over all particles
 #endif
+#ifdef UNIFORM_RESOLUTION_MULTIPLIER
+        All.MaxMassForParticleSplit = All.MaxMassForParticleSplit / UNIFORM_RESOLUTION_MULTIPLIER;  // uniform resolution multiplier < 1 is downsampling/merging (decrease in resolution, increase in delta m), > 1 is upsampling/splitting (increase in resolution, decrease in delta m), uniform over all particles
+        All.MinMassForParticleMerger = All.MinMassForParticleMerger / UNIFORM_RESOLUTION_MULTIPLIER; 
 #endif
 
 #ifdef SINGLE_STAR_SINK_DYNAMICS /* Get mean gas mass, used in various subroutines */
