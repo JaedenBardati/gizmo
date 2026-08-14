@@ -404,10 +404,17 @@ void find_next_sync_point_and_drift(void)
 #endif
 #endif
 
+#ifndef OUTPUT_EVERY_NSYNC_INSTEAD
         savepositions(All.SnapshotFileCount++);	/* write snapshot file */
+#endif
         All.Ti_nextoutput = find_next_outputtime(All.Ti_nextoutput + 1);
     }
 
+#ifdef OUTPUT_EVERY_NSYNC_INSTEAD
+  static int sync_count = 0;
+  sync_count++;
+  if (sync_count % OUTPUT_EVERY_NSYNC_INSTEAD == 0) { savepositions(All.SnapshotFileCount++); } /* write snapshot file */
+#endif
 
   All.Previous_Ti_Current = All.Ti_Current;
   All.Ti_Current = ti_next_kick_global;

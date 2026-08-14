@@ -42,9 +42,20 @@
 #endif
 // also should enable PMGRID=128, USE_FFTW3, OPENMP=2 in Config.sh to match Frontera runs; also add DEBUG and/or OUTPUT_ADDITIONAL_RUNINFO for debugging and extra prints if needed (likely not on production runs)
 #endif
-#if defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM) && defined(PARTICLE_MERGE_SPLIT_TO_TARGET_ASAP) //top level flag for jumping asap to target mass resolution (about 1 split/merge per timestep) for e.g. setting up ics
+
+/* top level flag for jumping asap to target mass resolution (about 1 split/merge per timestep) for e.g. setting up ics */
+#if defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM) && defined(PARTICLE_MERGE_SPLIT_TO_TARGET_ASAP) 
 #define FORCE_EQUAL_TIMESTEPS
-#define MINIMUM_TIMESTEPS_BEFORE_MERGESPLIT 0
+#define MINIMUM_TIMESTEPS_BEFORE_MERGESPLIT (0)
+#define PARTICLE_MERGE_SPLIT_EVERY_TIMESTEP
+#ifndef UNIFORM_RESOLUTION_MULTIPLIER
+#define UNIFORM_RESOLUTION_MULTIPLIER (1 << (PARTICLE_MERGE_SPLIT_TO_TARGET_ASAP))
+#endif
+#ifndef OUTPUT_EVERY_NSYNC_INSTEAD
+#define OUTPUT_EVERY_SYNC_INSTEAD PARTICLE_MERGE_SPLIT_TO_TARGET_ASAP
+#endif
+// should also use NO_ISEND_IRECV_IN_DOMAIN if particle number is high, but this needs to be set in Config.sh
+// most importantly if you use this flag though, remember to increase PartAllocFactor proportional to the factor increase in particles (e.g. w/ UNIFORM_RESOLUTION_MULTIPLIER)
 #endif
 
 /* set default slope limiters */
