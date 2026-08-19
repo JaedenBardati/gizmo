@@ -37,13 +37,12 @@
 #define PIECEWISE_POWERLAW_MASS_RESOLUTION_ROUT 4.0e3, 6.0e-3, 2.0e-3 // outer radii of the piecewise powerlaw refinement regions (in pc)
 #define PIECEWISE_POWERLAW_MASS_RESOLUTION_RIN 0.3, 2.0e-3, 7.0e-6 // inner radii of the piecewise powerlaw refinement regions (in pc)
 #define PIECEWISE_POWERLAW_MASS_RESOLUTION_SLOPES 1.5, 4.0, 2.0 // slopes of the piecewise powerlaw refinement regions
-#elif CAAR_TOPLEVEL_FLAG >= 2 // original resolution with hyper-refined BLR, adjust with ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER
+#endif
+#if CAAR_TOPLEVEL_FLAG >= 2 // original resolution with hyper-refined BLR, adjust with ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER
 #define ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC (0.024)
 #define ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC (0.026)
 #define ULTRA_REFINEMENT_ZONE_SLOPE (2.0)
 #define ULTRA_REFINEMENT_ZONE_TRANSITION_RADIUS_RATIO (1.3)
-#elif CAAR_TOPLEVEL_FLAG >= 3
-#error "Not implemented CAAR_TOPLEVEL_FLAG >= 3."
 #endif
 // also should use PMGRID=128 in Config.sh
 #endif
@@ -58,7 +57,8 @@
 #endif
 #if CAAR_TOPLEVEL_FLAG == 1 && !defined(UNIFORM_RESOLUTION_MULTIPLIER)
 #define UNIFORM_RESOLUTION_MULTIPLIER (PARTICLE_MERGE_SPLIT_TO_TARGET_ASAP)
-#elif CAAR_TOPLEVEL_FLAG == 2 && !defined(ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER)
+#endif
+#if CAAR_TOPLEVEL_FLAG == 2 && !defined(ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER)
 #define ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER (((PARTICLE_MERGE_SPLIT_TO_TARGET_ASAP) - 1.0) * 285.7) // fine tuned to our setup
 #endif
 // if you use this flag, remember to increase PartAllocFactor proportional to the factor increase in total particle number

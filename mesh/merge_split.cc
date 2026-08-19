@@ -180,18 +180,12 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
 #ifndef PIECEWISE_POWERLAW_MASS_RESOLUTION_SLOPES
 #error "If you turn on the piecewise power law mass resolution override, you must also define an array for PIECEWISE_POWERLAW_MASS_RESOLUTION_SLOPES."
 #endif
-#if defined(ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER) && (ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER != 1.0)
-#if ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER <= 0.0
-#error "ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER must be strictly positive."
+#if defined(ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER)
+#ifndef ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC
+#error "If you turn on the ultra-refinement zone, you must also define ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC."
 #endif
-#if !defined(ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC) || (ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC <= 0.0)
-#error "If you turn on the ultra-refinement zone, you must also define ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC > 0."
-#endif
-#if !defined(ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC) || (ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC <= 0.0)
-#error "If you turn on the ultra-refinement zone, you must also define ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC > 0."
-#endif
-#if ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC >= ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC
-#error "Inner ultra-refinement radius must be strictly smaller than outer radius."
+#ifndef ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC
+#error "If you turn on the ultra-refinement zone, you must also define ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC."
 #endif
 #endif
     /* user specified refinement parameters */
@@ -245,20 +239,22 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
         constexpr double leakyratio = 3.0; // default to a leaky slope that is a ratio of 3.0 end-to-end (only affects the refinement if time refinement is specified)
 #endif
 
-#if defined(ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER) && (ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER != 1.0)
+#if defined(ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER) 
     constexpr double ultra_refinement_zone_resolution_multiplier = ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER;
     constexpr double ultra_refinement_zone_inner_radius_pc = ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC;
     constexpr double ultra_refinement_zone_outer_radius_pc = ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC;
+    static_assert(ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER > 0.0, "ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER must be strictly positive.");
+    static_assert(ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC > 0.0, "ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC must be strictly positive.");
+    static_assert(ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC > 0.0, "ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC must be strictly positive.");
+    static_assert(ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC > ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC, "ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC must be strictly greater than ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC.");
 #if defined(ULTRA_REFINEMENT_ZONE_SLOPE)
     constexpr double ultra_refinement_zone_slope = ULTRA_REFINEMENT_ZONE_SLOPE;
 #else
     constexpr double ultra_refinement_zone_slope = 0.0;
 #endif
 #if defined(ULTRA_REFINEMENT_ZONE_TRANSITION_RADIUS_RATIO)
-#if ULTRA_REFINEMENT_ZONE_TRANSITION_RADIUS_RATIO < 1.0
-#error "ULTRA_REFINEMENT_ZONE_TRANSITION_RADIUS_RATIO must not be less than 1."
-#endif
         constexpr double ultra_refinement_zone_transition_radius_ratio = ULTRA_REFINEMENT_ZONE_TRANSITION_RADIUS_RATIO;
+        static_assert(ultra_refinement_zone_transition_radius_ratio > 1.0, "Ultra-refinement zone transition radius ratio must be > 1.0");
 #else
         constexpr double ultra_refinement_zone_transition_radius_ratio = 2.0;
 #endif
@@ -439,25 +435,25 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
     ftarget = DMAX(ftarget, fmin); // clamp leaky slope to minimum resolution target
 
     // 4) add ultra-refinement zone if specified (no time-dependence implemented currently)
-#if defined(ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER) && (ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER != 1.0)
+#if defined(ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER) 
     constexpr double inv_ultra_refinement_zone_resolution_multiplier = 1.0 / ultra_refinement_zone_resolution_multiplier; 
-    constexpr double midpoint = sqrt(ultra_refinement_zone_inner_radius_pc * ultra_refinement_zone_outer_radius_pc);
+    static const double midpoint = sqrt(ultra_refinement_zone_inner_radius_pc * ultra_refinement_zone_outer_radius_pc);
     if(r_pc >= ultra_refinement_zone_inner_radius_pc && r_pc <= ultra_refinement_zone_outer_radius_pc) { ftarget *= inv_ultra_refinement_zone_resolution_multiplier * pow(r_pc / midpoint, ultra_refinement_zone_slope); }
     else if (ultra_refinement_zone_transition_radius_ratio > 1.0) {  // add transition zones if needed
-        constexpr double r_inner_bound = ultra_refinement_zone_inner_radius_pc / ultra_refinement_zone_transition_radius_ratio
-        constexpr double r_outer_bound = ultra_refinement_zone_outer_radius_pc * ultra_refinement_zone_transition_radius_ratio
-        constexpr double base1 = inv_ultra_refinement_zone_resolution_multiplier * pow(ultra_refinement_zone_inner_radius_pc/midpoint, ultra_refinement_zone_slope);
-        constexpr double base2 = inv_ultra_refinement_zone_resolution_multiplier * pow(ultra_refinement_zone_outer_radius_pc/midpoint, ultra_refinement_zone_slope); 
+        constexpr double r_inner_bound = ultra_refinement_zone_inner_radius_pc / ultra_refinement_zone_transition_radius_ratio;
+        constexpr double r_outer_bound = ultra_refinement_zone_outer_radius_pc * ultra_refinement_zone_transition_radius_ratio;
+        static const double base1 = inv_ultra_refinement_zone_resolution_multiplier * pow(ultra_refinement_zone_inner_radius_pc/midpoint, ultra_refinement_zone_slope);
+        static const double base2 = inv_ultra_refinement_zone_resolution_multiplier * pow(ultra_refinement_zone_outer_radius_pc/midpoint, ultra_refinement_zone_slope); 
 #ifdef ULTRA_REFINEMENT_ZONE_POWERLAW_TRANSITION_INSTEAD
         // power law implementation (generally exponential is preferred, but this is here for testing)
-        constexpr double gamma1 =  (log(base1)) / log(ultra_refinement_zone_transition_radius_ratio) // leaky slopes between ultra refinement zone and rest of refinement curve
-        constexpr double gamma2 = -(log(base2)) / log(ultra_refinement_zone_transition_radius_ratio)
+        static const double gamma1 =  (log(base1)) / log(ultra_refinement_zone_transition_radius_ratio); // leaky slopes between ultra refinement zone and rest of refinement curve
+        static const double gamma2 = -(log(base2)) / log(ultra_refinement_zone_transition_radius_ratio);
         if(r_pc < ultra_refinement_zone_inner_radius_pc && (r_pc > r_inner_bound)){ ftarget *= base1 * pow(r_pc / ultra_refinement_zone_inner_radius_pc, gamma1); }
         if(r_pc > ultra_refinement_zone_outer_radius_pc && (r_pc < r_outer_bound)){ ftarget *= base2 * pow(r_pc / ultra_refinement_zone_outer_radius_pc, gamma2); }
 #else
         // the standard exponential drop-in implementation
-        constexpr double m1 = 1.0/(ultra_refinement_zone_inner_radius_pc-r_inner_bound)
-        constexpr double m2 = 1.0/(1.0/r_outer_bound - 1.0/ultra_refinement_zone_outer_radius_pc)
+        constexpr double m1 = 1.0/(ultra_refinement_zone_inner_radius_pc-r_inner_bound);
+        constexpr double m2 = 1.0/(1.0/r_outer_bound - 1.0/ultra_refinement_zone_outer_radius_pc);
         if(r_pc < ultra_refinement_zone_inner_radius_pc && (r_pc > r_inner_bound)){ ftarget *= pow(base1, 1+m1*(r_pc-ultra_refinement_zone_inner_radius_pc)); }
         if(r_pc > ultra_refinement_zone_outer_radius_pc && (r_pc < r_outer_bound)){ ftarget *= pow(base2, 1-m2*(1.0/r_pc-1.0/ultra_refinement_zone_outer_radius_pc)); }
 #endif
