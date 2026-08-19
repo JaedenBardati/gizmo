@@ -265,12 +265,18 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
         static int initialized = 0;
         if (initialized == 0) {
             printf("Using piecewise power law mass resolution override.\n");
-    #ifdef UNIFORM_RESOLUTION_MULTIPLIER
-            printf("> Using uniform resolution multiplier: %g\n", UNIFORM_RESOLUTION_MULTIPLIER);
-    #endif
-    #ifdef ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER
-            printf("> Using ultra-refinement zone multiplier: %g\n", ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER);
-    #endif
+#ifdef UNIFORM_RESOLUTION_MULTIPLIER
+            printf("> Using uniform resolution multiplier: %g\n", ultra_refinement_zone_resolution_multiplier);
+#endif
+#ifdef ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER
+            printf("> Using ultra-refinement inner radius: %g\n", ultra_refinement_zone_inner_radius_pc);
+            printf("> Using ultra-refinement outer radius: %g\n", ultra_refinement_zone_outer_radius_pc);
+            printf("> Using ultra-refinement slope: %g\n", ultra_refinement_zone_slope);
+            printf("> Using ultra-refinement transition radius ratio: %g\n", ultra_refinement_zone_transition_radius_ratio);
+#ifdef ULTRA_REFINEMENT_ZONE_POWERLAW_TRANSITION_INSTEAD
+            printf("> Using ultra-refinement powerlaw transition instead of exponential.\n");
+#endif
+#endif
             initialized = 1;
         }
     }
@@ -414,31 +420,45 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
         if(reff_pc < rin_pc[k]) { feff *= pow(reff_pc / rin_pc[k], -slopes[k]); }
     }
 
-    // 3) compute final f0 with "leaky" floor from reff to rsink
-    if(r_pc > reff_pc) {return ftarget;}
+    // 3) add "leaky" floor from reff to rsink if not done refining
+    if(r_pc < reff_pc) {
+        double fmin;
+        if(reff_pc <= rsink_pc) {fmin = feff;}
+        else {fmin = feff * DMIN(DMAX(pow(r_pc / reff_pc, log(leakyratio) / (log(reff_pc / rsink_pc)+1e-10)), 1.0/leakyratio), 1.0);}
+    #ifdef MERGE_SPLIT_REFINEMENT_DEBUG
+        if(ThisTask == 0)
+        {
+            static double last_time_printed = -1.0;
+            if(All.Time != last_time_printed)
+            {
+                printf("[mergesplit_ref] r_sink_pc=%g r_pc=%g reff_pc=%g ftarget=%g feff=%g fmin=%g\n", rsink_pc, r_pc, reff_pc, ftarget, feff, fmin);
+                fflush(stdout);
+                last_time_printed = All.Time;
+            }
+        }
+    #endif
+        ftarget = DMAX(ftarget, fmin); // clamp leaky slope to minimum resolution target
+    }
 
-    double fmin;
-    if(reff_pc <= rsink_pc) {fmin = feff;}
-    else {fmin = feff * DMIN(DMAX(pow(r_pc / reff_pc, log(leakyratio) / (log(reff_pc / rsink_pc)+1e-10)), 1.0/leakyratio), 1.0);}
+    // 4) add ultra-refinement zone if specified (no time-dependence implemented currently)
+#if defined(ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER) 
+    constexpr double inv_ultra_refinement_zone_resolution_multiplier = 1.0 / ultra_refinement_zone_resolution_multiplier; 
+    static const double midpoint = sqrt(ultra_refinement_zone_inner_radius_pc * ultra_refinement_zone_outer_radius_pc);
+    if(r_pc >= ultra_refinement_zone_inner_radius_pc && r_pc <= ultra_refinement_zone_outer_radius_pc) { 
+        ftarget *= inv_ultra_refinement_zone_resolution_multiplier * pow(r_pc / midpoint, ultra_refinement_zone_slope);
 #ifdef MERGE_SPLIT_REFINEMENT_DEBUG
     if(ThisTask == 0)
     {
         static double last_time_printed = -1.0;
         if(All.Time != last_time_printed)
         {
-            printf("[mergesplit_ref] r_sink_pc=%g r_pc=%g reff_pc=%g ftarget=%g feff=%g fmin=%g\n", rsink_pc, r_pc, reff_pc, ftarget, feff, fmin);
+            printf("[ultra_ref] at r = %g pc, ultra-ref ftarget mult = %g\n", r_pc, inv_ultra_refinement_zone_resolution_multiplier * pow(r_pc / midpoint, ultra_refinement_zone_slope));
             fflush(stdout);
             last_time_printed = All.Time;
         }
     }
 #endif
-    ftarget = DMAX(ftarget, fmin); // clamp leaky slope to minimum resolution target
-
-    // 4) add ultra-refinement zone if specified (no time-dependence implemented currently)
-#if defined(ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER) 
-    constexpr double inv_ultra_refinement_zone_resolution_multiplier = 1.0 / ultra_refinement_zone_resolution_multiplier; 
-    static const double midpoint = sqrt(ultra_refinement_zone_inner_radius_pc * ultra_refinement_zone_outer_radius_pc);
-    if(r_pc >= ultra_refinement_zone_inner_radius_pc && r_pc <= ultra_refinement_zone_outer_radius_pc) { ftarget *= inv_ultra_refinement_zone_resolution_multiplier * pow(r_pc / midpoint, ultra_refinement_zone_slope); }
+    }
     else if (ultra_refinement_zone_transition_radius_ratio > 1.0) {  // add transition zones if needed
         constexpr double r_inner_bound = ultra_refinement_zone_inner_radius_pc / ultra_refinement_zone_transition_radius_ratio;
         constexpr double r_outer_bound = ultra_refinement_zone_outer_radius_pc * ultra_refinement_zone_transition_radius_ratio;
