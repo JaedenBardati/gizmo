@@ -112,56 +112,88 @@ int does_particle_need_to_be_split(int i)
 #endif
 }
 
+
+
+
+
 /*! A multiplicative factor that determines the target mass of a particle for the (de)refinement routines; split_key tells you if this is for a split (1) or merge (0) */
 double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
 {
 #if defined(OVERRIDE_MASS_RESOLUTION_WITH_PIECEWISE_POWERLAW) && defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
     /*
-     Customizable piecewise power law mass resolution around central object
+     Customizable piecewise power law mass resolution around central object(s)
      written by Jaeden Bardati (jbardati@caltech.edu)
      
-     Set the following flags in config.sh if you want to use this:
-       * OVERRIDE_MASS_RESOLUTION_WITH_PIECEWISE_POWERLAW                      // enables this module (also requires e.g. SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
-       * (optional) MERGE_SPLIT_REFINEMENT_DEBUG                               // enables extra debugging output
+     Set the following flag in config.sh if you want to use this:
+       * OVERRIDE_MASS_RESOLUTION_WITH_PIECEWISE_POWERLAW                      // enables this module (also requires SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
      
-     Also set a few arrays defining the refinement parameters in your config.sh file. Each line in these arrays 
-     is a "refinement phase" defined as a single power law from some radius to another, ramped over some period 
-     of time. The number of lines must match in all arrays. 
+     Also set a few arrays defining the refinement parameters in your config.sh file. Each line in these arrays is a "refinement phase"
+     defined as a single power law from some radius to another, ramped over some period of time. The number of lines must match in all 
+     arrays. Note that, unless you set the speed of refinement, the refinement will be instantaneous (or at least, as fast as it can).
      
      Target mass resolution shape (at t = infinity):
-       * PIECEWISE_POWERLAW_MASS_RESOLUTION_ROUT=5.0, 1.0                    // comma-separated list of outer radii for each refinement phase in pc; must be in decreasing order
-       * PIECEWISE_POWERLAW_MASS_RESOLUTION_RIN=1.0, 0.25                    // comma-separated list of inner radii for each refinement phase in pc; must be in decreasing order
-       * PIECEWISE_POWERLAW_MASS_RESOLUTION_SLOPES=3.0, 2.0                  // comma-separated list of slopes for each refinement phase
+       * PIECEWISE_POWERLAW_MASS_RESOLUTION_ROUT=5.0, 1.0                     // comma-separated list of outer radii for each refinement phase in pc; must be in decreasing order
+       * PIECEWISE_POWERLAW_MASS_RESOLUTION_RIN=1.0, 0.25                     // comma-separated list of inner radii for each refinement phase in pc; must be in decreasing order
+       * PIECEWISE_POWERLAW_MASS_RESOLUTION_SLOPES=3.0, 2.0                   // comma-separated list of slopes for each refinement phase
      
      How the target mass resolution is reached in time (by default, no time-dependent refinement is applied):
-       * (optional) PIECEWISE_POWERLAW_MASS_RESOLUTION_SPEEDS=3.0, 3.0       // comma-separated list of speeds for each refinement phase; larger = faster; 0.64 ~ 1 split every 5 dynamical times at reff (with default beta=1.5, 1 split per orbit is ~0.8, 1 split per free fall is ~4.5), set to zero if you want to disable the time-dependent refinement for a given phase
-       * (optional) PIECEWISE_POWERLAW_MASS_RESOLUTION_TIMEPOWER=1.5, 1.5    // comma-separated list of steepness for each refinement phase (in time); larger = steeper refinement; it is the power of the radius in the dynamical time; i.e., beta in tdyn(r)=A*r^beta; must be >0
-       * (optional) PIECEWISE_POWERLAW_MASS_RESOLUTION_TDELAYS=0.0, 0.0      // comma-separated list of delay times after each refinement phase (in code time units), by default no delay between phases
-       
-       * (optional) PIECEWISE_POWERLAW_MASS_RESOLUTION_TINIT_DELAY=(0.0)       // scalar delay after TimeBegin to wait before starting first phase, code time units
-       * (optional) PIECEWISE_POWERLAW_MASS_RESOLUTION_LEAKYRATIO=(3.0)        // scalar ratio of the maximum end of the leaky slope (constrained at reff) to the minimum end (at rsink); only affects the refinement if time refinement
+       * (optional) PIECEWISE_POWERLAW_MASS_RESOLUTION_SPEEDS=0.0, 0.0        // comma-separated list of speeds for each refinement phase; larger = faster; 0.64 ~ 1 split every 5 dynamical times at reff (with default beta=1.5, 1 split per orbit is ~0.8, 1 split per free fall is ~4.5), set to zero if you want to disable the time-dependent refinement for a given phase (this is the default)
+       * (optional) PIECEWISE_POWERLAW_MASS_RESOLUTION_TIMEPOWER=1.5, 1.5     // comma-separated list of steepness for each refinement phase (in time); larger = steeper refinement; it is the power of the radius in the dynamical time; i.e., beta in tdyn(r)=A*r^beta; must be >0
+       * (optional) PIECEWISE_POWERLAW_MASS_RESOLUTION_TDELAYS=0.0, 0.0       // comma-separated list of delay times after each refinement phase (in code time units), by default no delay between phases
+       * (optional) PIECEWISE_POWERLAW_MASS_RESOLUTION_TINIT_DELAY=(0.0)      // scalar delay after TimeBegin to wait before starting first phase, code time units
+       * (optional) PIECEWISE_POWERLAW_MASS_RESOLUTION_LEAKYRATIO=(3.0)       // scalar ratio of the maximum end of the leaky slope (constrained at reff) to the minimum end (at rsink); only affects the refinement if time refinement
     
+     Next is the "ultra-refinement" zone parameters, which is an optional extra refinement zone that can be added on top of the piecewise power law mass resolution. 
+       * (optional) ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER=(1.0)          // if not equal to 1.0, defines a multiplier for the target mass resolution in an extra "ultra-refinement" zone (> 1 is more refined)
+       * (optional) ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC=(1.0)               // defines the inner radius of the ultra-refinement zone in pc (required if ULTRA_REFINEMENT_ZONE_MULTIPLER != 1)
+       * (optional) ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC=(5.0)               // defines the outer radius of the ultra-refinement zone in pc (required if ULTRA_REFINEMENT_ZONE_MULTIPLER != 1)
+       * (optional) ULTRA_REFINEMENT_ZONE_SLOPE=(0.0)                         // defines the slope of the ultra-refinement zone (default is 0.0, i.e., uniform resolution from original power law distribution)
+       * (optional) ULTRA_REFINEMENT_ZONE_TRANSITION_RADIUS_RATIO=(2.0)       // defines the radius ratio between the ends of the transition of the ultra-refinement zone (default is 2.0, turn off y setting to 1.0)
+       * (optional) ULTRA_REFINEMENT_ZONE_POWERLAW_TRANSITION_INSTEAD         // if defined, the transition into the ultra-refinement zone are power laws instread of exponentials (default is exponential)
+
+     Finally for debugging during development use
+       * (optional) MERGE_SPLIT_REFINEMENT_DEBUG                              // enables debug print statements for the refinement routines
+
     Generally the way that this works is that there is a goal target mass resolution vs radius relation that is piecewise power law (i.e., a series of lines 
     in log delta_m by log radius r from central pointlike object). If you enable it, there is a time dependent refinement that ramps to the target mass resolution 
     over some time proportional to the local dynamical time inside the refined zone (the boundary of which is denoted reff). At r > reff, we are at the target mass
-    resoltion (ar t=infinity), and inside r < reff, it is mostly flat resolution. To ensure that not everyting in the refined zone refines at once when it drops by a 
+    resolution (at t=infinity), and inside r < reff, it is mostly flat resolution. To ensure that not everyting in the refined zone refines at once when it drops by a 
     factor of ~2, were it can, we have a "leaky" slope that is a power law from the maximum end of the leaky slope (constrained at reff) to the minimum end (at rsink).
     This leaky slope disappears at t=infinity since the maximum is taken with the target mass resolution. It also ensures the refinement happens in spherical waves outward.
     
     The r_eff(t_sim) used here was derived by assuming a "zoom-in rate" dlog(r_eff)/dt_sim = 1/(tdyn(r_eff)*refinement_speed) with some power law relation for tdyn(r_eff).
-    
     Note that this is normalized such that the target particle mass is All.MaxMassForParticleSplit at rout_pc[0]. You can change this manually with MERGESPLIT_HARDCODE_MAX_MASS or UNIFORM_RESOLUTION_MULTIPLIER.
-    */
-    #ifndef PIECEWISE_POWERLAW_MASS_RESOLUTION_ROUT
-    #error "If you turn on the piecewise power law mass resolution override, you must also define an array for PIECEWISE_POWERLAW_MASS_RESOLUTION_ROUT."
-    #endif
-    #ifndef PIECEWISE_POWERLAW_MASS_RESOLUTION_RIN
-    #error "If you turn on the piecewise power law mass resolution override, you must also define an array for PIECEWISE_POWERLAW_MASS_RESOLUTION_RIN."
-    #endif
-    #ifndef PIECEWISE_POWERLAW_MASS_RESOLUTION_SLOPES
-    #error "If you turn on the piecewise power law mass resolution override, you must also define an array for PIECEWISE_POWERLAW_MASS_RESOLUTION_SLOPES."
-    #endif
 
+    There is also a "ultra-refinement" zone that can be added on top of the piecewise power law mass resolution. This is effectively a multiplier on the power law distribution with a 
+    uniform resolution inside between two radii. There is also some exponential transition on either end of this zone that gradually returns to the orginal power law resolution so there's a continous distribution. 
+    No time-dependence is currently implemented for the ultra-refinement zone.
+
+    To support binary refinement, the radius to each of each special particle is r = min(r_1, r_2, ...) such that particles are refined according to its nearest special particle. Still uses the same treatment as above on this r. 
+    The dynamical time in the binary scenario is normalized using the summed mass of the special particles (so that all particles are refined at the same speed, but this can be different from the local dynamical time).
+    */
+#ifndef PIECEWISE_POWERLAW_MASS_RESOLUTION_ROUT
+#error "If you turn on the piecewise power law mass resolution override, you must also define an array for PIECEWISE_POWERLAW_MASS_RESOLUTION_ROUT."
+#endif
+#ifndef PIECEWISE_POWERLAW_MASS_RESOLUTION_RIN
+#error "If you turn on the piecewise power law mass resolution override, you must also define an array for PIECEWISE_POWERLAW_MASS_RESOLUTION_RIN."
+#endif
+#ifndef PIECEWISE_POWERLAW_MASS_RESOLUTION_SLOPES
+#error "If you turn on the piecewise power law mass resolution override, you must also define an array for PIECEWISE_POWERLAW_MASS_RESOLUTION_SLOPES."
+#endif
+#if defined(ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER) && (ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER != 1.0)
+#if ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER <= 0.0
+#error "ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER must be strictly positive."
+#endif
+#if !defined(ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC) || (ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC <= 0.0)
+#error "If you turn on the ultra-refinement zone, you must also define ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC > 0."
+#endif
+#if !defined(ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC) || (ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC <= 0.0)
+#error "If you turn on the ultra-refinement zone, you must also define ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC > 0."
+#endif
+#if ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC >= ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC
+#error "Inner ultra-refinement radius must be strictly smaller than outer radius."
+#endif
+#endif
     /* user specified refinement parameters */
     constexpr double rout_pc[] = { PIECEWISE_POWERLAW_MASS_RESOLUTION_ROUT }; 
     constexpr double rin_pc[] = { PIECEWISE_POWERLAW_MASS_RESOLUTION_RIN };
@@ -177,52 +209,94 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
         constexpr operator const double*() const { return data; }
     };
 
-    #if defined(PIECEWISE_POWERLAW_MASS_RESOLUTION_SPEEDS)
+#if defined(PIECEWISE_POWERLAW_MASS_RESOLUTION_SPEEDS)
     constexpr double refinement_speeds[] = { PIECEWISE_POWERLAW_MASS_RESOLUTION_SPEEDS }; // larger = faster; 0.64 ~ 1 split in 5 dynamical times
     static_assert(sizeof(rout_pc) == sizeof(refinement_speeds), "Piecewise powerlaw mass resolution arrays must be the same size!");
-    #else
+#else
     constexpr FillArrayWithDefaultAtCompileTime refinement_speeds_storage(0.0);
     const double* refinement_speeds = refinement_speeds_storage.data;  // default to start at target mass resolution (no time-dependent refinement ramp)
-    #endif
+#endif
 
-    #if defined(PIECEWISE_POWERLAW_MASS_RESOLUTION_TIMEPOWER)
+#if defined(PIECEWISE_POWERLAW_MASS_RESOLUTION_TIMEPOWER)
     constexpr double refinement_timepower[] = { PIECEWISE_POWERLAW_MASS_RESOLUTION_TIMEPOWER }; // larger = steeper refinement; beta in tdyn(r)=A*r^beta; must be >0
     static_assert(sizeof(rout_pc) == sizeof(refinement_timepower), "Piecewise powerlaw mass resolution arrays must be the same size!");
-    #else
+#else
     constexpr FillArrayWithDefaultAtCompileTime refinement_timepower_storage(1.5);
     const double* refinement_timepower = refinement_timepower_storage.data; // default to scaling time-dependent refinement with tdyn(r) ~ r^(3/2), appropriate within the BHROI
-    #endif
+#endif
 
-    #if defined(PIECEWISE_POWERLAW_MASS_RESOLUTION_TDELAYS)
+#if defined(PIECEWISE_POWERLAW_MASS_RESOLUTION_TDELAYS)
     constexpr double refinement_tdelays[] = { PIECEWISE_POWERLAW_MASS_RESOLUTION_TDELAYS }; // delay time after a refinement phase, in code time units
     static_assert(sizeof(rout_pc) == sizeof(refinement_tdelays), "Piecewise powerlaw mass resolution arrays must be the same size!");
-    #else
+#else
     constexpr FillArrayWithDefaultAtCompileTime refinement_tdelays_storage(0.0);
     const double* refinement_tdelays = refinement_tdelays_storage.data; // delay time after a refinement phase, in code time units
-    #endif
+#endif
     
-    #if defined(PIECEWISE_POWERLAW_MASS_RESOLUTION_TINIT_DELAY) 
+#if defined(PIECEWISE_POWERLAW_MASS_RESOLUTION_TINIT_DELAY) 
     constexpr double tinit_delay_code = PIECEWISE_POWERLAW_MASS_RESOLUTION_TINIT_DELAY; // delay after TimeBegin to wait before starting first phase, code time units
-    #else
+#else
     constexpr double tinit_delay_code = 0.0; // default to no delay
-    #endif
+#endif
 
-    #if defined(PIECEWISE_POWERLAW_MASS_RESOLUTION_LEAKYRATIO) 
+#if defined(PIECEWISE_POWERLAW_MASS_RESOLUTION_LEAKYRATIO) 
     constexpr double leakyratio = PIECEWISE_POWERLAW_MASS_RESOLUTION_LEAKYRATIO; // ratio of the maximum end of the leaky slope (constrained at reff) to the minimum end (at rsink)
-    #else
+#else
         constexpr double leakyratio = 3.0; // default to a leaky slope that is a ratio of 3.0 end-to-end (only affects the refinement if time refinement is specified)
+#endif
+
+#if defined(ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER) && (ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER != 1.0)
+    constexpr double ultra_refinement_zone_resolution_multiplier = ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER;
+    constexpr double ultra_refinement_zone_inner_radius_pc = ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC;
+    constexpr double ultra_refinement_zone_outer_radius_pc = ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC;
+#if defined(ULTRA_REFINEMENT_ZONE_SLOPE)
+    constexpr double ultra_refinement_zone_slope = ULTRA_REFINEMENT_ZONE_SLOPE;
+#else
+    constexpr double ultra_refinement_zone_slope = 0.0;
+#endif
+#if defined(ULTRA_REFINEMENT_ZONE_TRANSITION_RADIUS_RATIO)
+#if ULTRA_REFINEMENT_ZONE_TRANSITION_RADIUS_RATIO < 1.0
+#error "ULTRA_REFINEMENT_ZONE_TRANSITION_RADIUS_RATIO must not be less than 1."
+#endif
+        constexpr double ultra_refinement_zone_transition_radius_ratio = ULTRA_REFINEMENT_ZONE_TRANSITION_RADIUS_RATIO;
+#else
+        constexpr double ultra_refinement_zone_transition_radius_ratio = 2.0;
+#endif
+#endif
+#ifdef MERGE_SPLIT_REFINEMENT_DEBUG
+    // print some info about the refinement parameters
+    if(ThisTask == 0) { 
+        static int initialized = 0;
+        if (initialized == 0) {
+            printf("Using piecewise power law mass resolution override.\n");
+    #ifdef UNIFORM_RESOLUTION_MULTIPLIER
+            printf("> Using uniform resolution multiplier: %g\n", UNIFORM_RESOLUTION_MULTIPLIER);
     #endif
+    #ifdef ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER
+            printf("> Using ultra-refinement zone multiplier: %g\n", ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER);
+    #endif
+            initialized = 1;
+        }
+    }
+#endif
     /* TODO: 
       - change snapshot output time (All.TimeBetSnapshot and All.MaxSizeTimestep) dynamically
       - change parameter for outer radius cutout (currently SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM_CUSTOM_POWERLAW_TARGETMASS_OUTER_RADIUS_PC, but needs to be put in a variable) and All.SofteningBulge (rsink) dynamically
+      - allow somehow for matching refinement speed to t_decay instead of t_dyn for binary case
     */
     
     // 0) setup
-    const double tdyn_1pc_code = pow(1.0 / UNIT_LENGTH_IN_PC, 1.5) / sqrt(All.G * All.Mass_of_SpecialParticle[0]); /* dynamical time scale factor A = tdyn(1pc) in tdyn(r_pc,k) = A * r_pc^beta */
+    double total_special_mass = 0.0;
+    for(int j=0; j<SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM; j++) { total_special_mass += All.Mass_of_SpecialParticle[j]; }
+#ifdef MERGE_SPLIT_REFINEMENT_DEBUG
+    double total_mass_accreted = 0.0;
+    for(int j=0; j<SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM; j++) { total_mass_accreted += All.Mass_Accreted_By_SpecialParticle[j]; }
+#endif
+    const double tdyn_1pc_code = pow(1.0 / UNIT_LENGTH_IN_PC, 1.5) / sqrt(All.G * total_special_mass); /* dynamical time scale factor A = tdyn(1pc) in tdyn(r_pc,k) = A * r_pc^beta */
     const double rsink_pc = All.ForceSoftening[3] * UNIT_LENGTH_IN_PC;    /* sink radius in pc, must be smaller than any of the routs or rins  */
     const double tinit_code = All.TimeBegin + tinit_delay_code;
 
-    // only use gas particles
+    // only refine gas particles
     if(P[i].Type != 0) {return 1.0;}
 
     // check if not yet started first refinement phase
@@ -245,14 +319,17 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
     }
 
     // compute distance from SMBH special particle
-    double r2 = 0.0;
-    for(int k=0; k<3; k++)
+    double r2 = 0.0, r2min = MAX_REAL_NUMBER;
+    double dx;
+    for(int j=0;j<SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM;j++)
     {
-        double dx = (P[i].Pos[k] - All.SpecialParticle_Position_ForRefinement[0][k]) * All.cf_atime;
-        r2 += dx*dx;
+        r2=0; for(int k=0;k<3;k++) {dx=(P[i].Pos[k]-All.SpecialParticle_Position_ForRefinement[j][k])*All.cf_atime; r2+=dx*dx;}
+        if(r2<r2min) {r2min=r2;}
     }
+    r2 = r2min; // want minimum distance to nearest refinement center
     double r_pc = sqrt(r2) * UNIT_LENGTH_IN_PC;   // convert to parsec
     if(!(r_pc > 0.0) || !isfinite(r_pc)) {return 1.0;}
+    if(r_pc < rsink_pc) {r_pc = rsink_pc;} // treat anything inside the sink radius as though it were at the sink radius
 
     // 1) Compute effective zoom radius reff
     double reff_pc = rin_pc[nphases - 1];
@@ -323,7 +400,7 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
             const double frac = (dbg_Tinf > 0.0) ? ((All.Time - dbg_tstart) / dbg_Tinf) : -1.0;
             printf("[mergesplit_ref] time_code=%g stage=%s phase=%d reff_pc=%g Tinf=%g tstart=%g tend_ref=%g tend_del=%g frac=%g G=%g Mbh=%g G*Mbh=%g Mass_Accreted=%g tdyn1pc=%g\n",
                    All.Time, stage_str, refinement_phase, reff_pc, dbg_Tinf, dbg_tstart, dbg_tend_ref, dbg_tend_del, frac,
-                   All.G, All.Mass_of_SpecialParticle[0], All.G*All.Mass_of_SpecialParticle[0], All.Mass_Accreted_By_SpecialParticle[0], tdyn_1pc_code);
+                   All.G, total_special_mass, All.G*total_special_mass, total_mass_accreted, tdyn_1pc_code);
             fflush(stdout);
             last_time_printed = All.Time;
         }
@@ -346,9 +423,8 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
 
     double fmin;
     if(reff_pc <= rsink_pc) {fmin = feff;}
-    else {fmin = feff * DMIN(DMAX(pow(r_pc / reff_pc, log(leakyratio) / log(reff_pc / rsink_pc)), 1.0/leakyratio), 1.0);}
-    
-    #ifdef MERGE_SPLIT_REFINEMENT_DEBUG
+    else {fmin = feff * DMIN(DMAX(pow(r_pc / reff_pc, log(leakyratio) / (log(reff_pc / rsink_pc)+1e-10)), 1.0/leakyratio), 1.0);}
+#ifdef MERGE_SPLIT_REFINEMENT_DEBUG
     if(ThisTask == 0)
     {
         static double last_time_printed = -1.0;
@@ -359,9 +435,36 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
             last_time_printed = All.Time;
         }
     }
-    #endif
+#endif
+    ftarget = DMAX(ftarget, fmin); // clamp leaky slope to minimum resolution target
 
-    return DMAX(ftarget, fmin);
+    // 4) add ultra-refinement zone if specified (no time-dependence implemented currently)
+#if defined(ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER) && (ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER != 1.0)
+    constexpr double inv_ultra_refinement_zone_resolution_multiplier = 1.0 / ultra_refinement_zone_resolution_multiplier; 
+    constexpr double midpoint = sqrt(ultra_refinement_zone_inner_radius_pc * ultra_refinement_zone_outer_radius_pc);
+    if(r_pc >= ultra_refinement_zone_inner_radius_pc && r_pc <= ultra_refinement_zone_outer_radius_pc) { ftarget *= inv_ultra_refinement_zone_resolution_multiplier * pow(r_pc / midpoint, ultra_refinement_zone_slope); }
+    else if (ultra_refinement_zone_transition_radius_ratio > 1.0) {  // add transition zones if needed
+        constexpr double r_inner_bound = ultra_refinement_zone_inner_radius_pc / ultra_refinement_zone_transition_radius_ratio
+        constexpr double r_outer_bound = ultra_refinement_zone_outer_radius_pc * ultra_refinement_zone_transition_radius_ratio
+        constexpr double base1 = inv_ultra_refinement_zone_resolution_multiplier * pow(ultra_refinement_zone_inner_radius_pc/midpoint, ultra_refinement_zone_slope);
+        constexpr double base2 = inv_ultra_refinement_zone_resolution_multiplier * pow(ultra_refinement_zone_outer_radius_pc/midpoint, ultra_refinement_zone_slope); 
+#ifdef ULTRA_REFINEMENT_ZONE_POWERLAW_TRANSITION_INSTEAD
+        // power law implementation (generally exponential is preferred, but this is here for testing)
+        constexpr double gamma1 =  (log(base1)) / log(ultra_refinement_zone_transition_radius_ratio) // leaky slopes between ultra refinement zone and rest of refinement curve
+        constexpr double gamma2 = -(log(base2)) / log(ultra_refinement_zone_transition_radius_ratio)
+        if(r_pc < ultra_refinement_zone_inner_radius_pc && (r_pc > r_inner_bound)){ ftarget *= base1 * pow(r_pc / ultra_refinement_zone_inner_radius_pc, gamma1); }
+        if(r_pc > ultra_refinement_zone_outer_radius_pc && (r_pc < r_outer_bound)){ ftarget *= base2 * pow(r_pc / ultra_refinement_zone_outer_radius_pc, gamma2); }
+#else
+        // the standard exponential drop-in implementation
+        constexpr double m1 = 1.0/(ultra_refinement_zone_inner_radius_pc-r_inner_bound)
+        constexpr double m2 = 1.0/(1.0/r_outer_bound - 1.0/ultra_refinement_zone_outer_radius_pc)
+        if(r_pc < ultra_refinement_zone_inner_radius_pc && (r_pc > r_inner_bound)){ ftarget *= pow(base1, 1+m1*(r_pc-ultra_refinement_zone_inner_radius_pc)); }
+        if(r_pc > ultra_refinement_zone_outer_radius_pc && (r_pc < r_outer_bound)){ ftarget *= pow(base2, 1-m2*(1.0/r_pc-1.0/ultra_refinement_zone_outer_radius_pc)); }
+#endif
+    }
+#endif
+
+    return ftarget;
 
     /*** end of piecewise powerlaw mass resolution ***/
 #endif
