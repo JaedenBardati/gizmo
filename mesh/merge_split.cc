@@ -144,9 +144,9 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
        * (optional) PIECEWISE_POWERLAW_MASS_RESOLUTION_LEAKYRATIO=(3.0)       // scalar ratio of the maximum end of the leaky slope (constrained at reff) to the minimum end (at rsink); only affects the refinement if time refinement
     
      Next is the "ultra-refinement" zone parameters, which is an optional extra refinement zone that can be added on top of the piecewise power law mass resolution. 
-       * (optional) ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER=(1.0)          // if not equal to 1.0, defines a multiplier for the target mass resolution in an extra "ultra-refinement" zone (> 1 is more refined)
-       * (optional) ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC=(1.0)               // defines the inner radius of the ultra-refinement zone in pc (required if ULTRA_REFINEMENT_ZONE_MULTIPLER != 1)
-       * (optional) ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC=(5.0)               // defines the outer radius of the ultra-refinement zone in pc (required if ULTRA_REFINEMENT_ZONE_MULTIPLER != 1)
+       * (optional) ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER=(1.0)          // if not equal to 1.0, defines a multiplier for the target mass resolution in an extra "ultra-refinement" zone (> 1 is more refined)
+       * (optional) ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC=(1.0)               // defines the inner radius of the ultra-refinement zone in pc (required if ULTRA_REFINEMENT_ZONE_MULTIPLIER != 1)
+       * (optional) ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC=(5.0)               // defines the outer radius of the ultra-refinement zone in pc (required if ULTRA_REFINEMENT_ZONE_MULTIPLIER != 1)
        * (optional) ULTRA_REFINEMENT_ZONE_SLOPE=(0.0)                         // defines the slope of the ultra-refinement zone (default is 0.0, i.e., uniform resolution from original power law distribution)
        * (optional) ULTRA_REFINEMENT_ZONE_TRANSITION_RADIUS_RATIO=(2.0)       // defines the radius ratio between the ends of the transition of the ultra-refinement zone (default is 2.0, turn off y setting to 1.0)
        * (optional) ULTRA_REFINEMENT_ZONE_POWERLAW_TRANSITION_INSTEAD         // if defined, the transition into the ultra-refinement zone are power laws instread of exponentials (default is exponential)
@@ -180,9 +180,9 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
 #ifndef PIECEWISE_POWERLAW_MASS_RESOLUTION_SLOPES
 #error "If you turn on the piecewise power law mass resolution override, you must also define an array for PIECEWISE_POWERLAW_MASS_RESOLUTION_SLOPES."
 #endif
-#if defined(ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER) && (ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER != 1.0)
-#if ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER <= 0.0
-#error "ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER must be strictly positive."
+#if defined(ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER) && (ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER != 1.0)
+#if ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER <= 0.0
+#error "ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER must be strictly positive."
 #endif
 #if !defined(ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC) || (ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC <= 0.0)
 #error "If you turn on the ultra-refinement zone, you must also define ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC > 0."
@@ -245,8 +245,8 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
         constexpr double leakyratio = 3.0; // default to a leaky slope that is a ratio of 3.0 end-to-end (only affects the refinement if time refinement is specified)
 #endif
 
-#if defined(ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER) && (ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER != 1.0)
-    constexpr double ultra_refinement_zone_resolution_multiplier = ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER;
+#if defined(ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER) && (ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER != 1.0)
+    constexpr double ultra_refinement_zone_resolution_multiplier = ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER;
     constexpr double ultra_refinement_zone_inner_radius_pc = ULTRA_REFINEMENT_ZONE_INNER_RADIUS_PC;
     constexpr double ultra_refinement_zone_outer_radius_pc = ULTRA_REFINEMENT_ZONE_OUTER_RADIUS_PC;
 #if defined(ULTRA_REFINEMENT_ZONE_SLOPE)
@@ -272,8 +272,8 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
     #ifdef UNIFORM_RESOLUTION_MULTIPLIER
             printf("> Using uniform resolution multiplier: %g\n", UNIFORM_RESOLUTION_MULTIPLIER);
     #endif
-    #ifdef ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER
-            printf("> Using ultra-refinement zone multiplier: %g\n", ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER);
+    #ifdef ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER
+            printf("> Using ultra-refinement zone multiplier: %g\n", ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER);
     #endif
             initialized = 1;
         }
@@ -439,7 +439,7 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
     ftarget = DMAX(ftarget, fmin); // clamp leaky slope to minimum resolution target
 
     // 4) add ultra-refinement zone if specified (no time-dependence implemented currently)
-#if defined(ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER) && (ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLER != 1.0)
+#if defined(ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER) && (ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER != 1.0)
     constexpr double inv_ultra_refinement_zone_resolution_multiplier = 1.0 / ultra_refinement_zone_resolution_multiplier; 
     constexpr double midpoint = sqrt(ultra_refinement_zone_inner_radius_pc * ultra_refinement_zone_outer_radius_pc);
     if(r_pc >= ultra_refinement_zone_inner_radius_pc && r_pc <= ultra_refinement_zone_outer_radius_pc) { ftarget *= inv_ultra_refinement_zone_resolution_multiplier * pow(r_pc / midpoint, ultra_refinement_zone_slope); }
