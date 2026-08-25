@@ -266,7 +266,7 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
         if (initialized == 0) {
             printf("Using piecewise power law mass resolution override.\n");
 #ifdef UNIFORM_RESOLUTION_MULTIPLIER
-            printf("> Using uniform resolution multiplier: %g\n", ultra_refinement_zone_resolution_multiplier);
+            printf("> Using uniform resolution multiplier: %g\n", UNIFORM_RESOLUTION_MULTIPLIER);
 #endif
 #ifdef ULTRA_REFINEMENT_ZONE_RESOLUTION_MULTIPLIER
             printf("> Using ultra-refinement inner radius: %g\n", ultra_refinement_zone_inner_radius_pc);
