@@ -611,6 +611,10 @@ void spawn_sink_wind_feedback(void)
     All.TotNumPart += (long long)MPI_n_particles_split;
     All.TotN_gas   += (long long)MPI_n_particles_split;
     Gas_split       = n_particles_split;                    // specific to the local processor //
+
+
+
+
 }
 
 
@@ -1139,6 +1143,13 @@ int sink_spawn_particle_wind_shell( int i, int dummy_cell_i_to_clone, int num_al
         }
 #endif
 #endif
+        // seed a positive density until the first density calculation
+        double rho_alone_in_kernel = 0;
+        if((P[j].KernelRadius > 0) && isfinite(P[j].KernelRadius)) {rho_alone_in_kernel = P[j].Mass / (VOLUME_NORM_COEFF_FOR_NDIMS * pow((double)P[j].KernelRadius, (double)NUMDIMS));}
+        if(!(rho_alone_in_kernel > 0) || !isfinite(rho_alone_in_kernel)) {rho_alone_in_kernel = CellP[dummy_cell_i_to_clone].Density;} /* the cloned element always has positive density */
+        if(!(CellP[j].Density > 0) || !isfinite(CellP[j].Density)) {CellP[j].Density = rho_alone_in_kernel;}
+        CellP[j].Density = DMAX(CellP[j].Density , 0.01 * rho_alone_in_kernel);
+
         /* note, if you want to use this routine to inject magnetic flux or cosmic rays, do this below */
 #if defined(SINK_WIND_SPAWN_SET_BFIELD_POLTOR)
         CellP[j].IniDen = -1. * CellP[j].Density; /* this is essentially acting like a bitflag, to signal to the code that the density needs to be recalculated because a spawn event just occurred */

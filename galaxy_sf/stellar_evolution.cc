@@ -810,7 +810,7 @@ void singlestar_subgrid_protostellar_evolution_update_track(int n, double dm, do
 #elif (SINGLE_STAR_STARFORGE_PROTOSTELLAR_EVOLUTION == 2) /* Protostellar evolution model based on the ORION version, see Offner 2009 Appendix B */
     double fk = 1.; // fraction of kinetic energy accreta has when it arrives at the accretion shock, relative to freefall from infinity
     double f_acc = 1.; // fraction of accretion power that is radiated away (the rest is advected into the star)
-    double max_rel_dr = 0.01; // maximum relative change in radius per step, if the change over a single timestep is larger than this than we subcycle the evolution of the stellar radius
+    double max_rel_dr = 0.001; // maximum relative change in radius per step, if the change over a single timestep is larger than this than we subcycle the evolution of the stellar radius
     double mass = P[n].Sink_Mass; // mass of star/protostar at the end of the timestep
     double mass_D = P[n].Mass_D; // amount of D in the protostar
     double mdot = P[n].Sink_Mdot; // accretion rate, shorter to write it this way
@@ -830,52 +830,65 @@ void singlestar_subgrid_protostellar_evolution_update_track(int n, double dm, do
     double lum_I = ps_lum_I(mdot); // luminosity needed to ionize the accreted material
     double t_KH = All.G*mass*mass/r/lum_int; // Kelvin-Helmholtz time
     double t_acc = mass/(mdot + MIN_REAL_NUMBER);
-    double n_ad, ag, rhoc, Pc, Tc, beta, dlogbeta_dlogm, lum_D, dm_D, rel_dr;
-    int loop_subcycle=0;
-    int n_subcycle=(int) (dt/(0.1*DMIN(All.G * mass * mass / r / (lum_int+lum_acc+lum_I), t_acc)) + 1); // subcycle timestep criterion taking the shorter of the kelvin-helmholtz or accretion timescales
+    double n_ad, ag, rhoc, Pc, Tc, beta, dlogbeta_dlogm, lum_D, dm_D;
     if(stage < 5) { // not a main sequence star
         if (stage >= 1) { // we only evolve those that are beyond the pre-collapse phase
-            double dm_curr = dm/n_subcycle; double dt_curr = dt/n_subcycle;
-            mass = m_initial; // value at the beginning o the timestep
-            for(loop_subcycle=0; loop_subcycle<n_subcycle; loop_subcycle++){
-                // Note: this subcycling does not update stage, so a protostar could overshoot
-                // Evolve mass
-                double dm_rel = dm_curr/mass;
-                mass += dm_curr; // increase mass first
-                // Get properties for stellar evolution
-                lum_Hayashi = ps_lum_Hayashi_BB(mass, r); // blackbody radiation assuming the star follows the Hayashi track
-                lum_MS = ps_lum_MS(mass); // luminosity of main sequence star of m mass
-                lum_int = DMAX(lum_Hayashi, lum_MS); // luminosity from the stellar interior
-                lum_acc = f_acc*fk*All.G*mass*mdot/r; // accretion luminosity
-                t_KH = All.G*mass*mass/r/lum_int; // Kelvin-Helmholtz time
-                t_acc = mass/(mdot + MIN_REAL_NUMBER);
-                n_ad = ps_polytropic_index(stage, mdot, mass); // get polytropic index. Note: ORION does not seem to update this, but I think it is worthwhile as mdot can vary over time
-                ag = 3.0/(5.0-n_ad); //shorthand
-                rhoc = ps_rhoc(mass, n_ad, r); // central density
-                Pc = ps_Pc(mass, n_ad, r); // central pressure
-                Tc = ps_Tc(rhoc,Pc); // central temperature
-                beta = ps_beta(mass, n_ad, rhoc, Pc); // mean ratio of gas pressure to total pressure
-                dlogbeta_dlogm = ps_dlogbeta_dlogm(mass, r, n_ad, beta, rhoc, Pc); // d log beta/ d log m
-                // Calculate luminosity from D burning
-                lum_D = 0; // luminosity from D burning
-                dm_D = dm_curr; // by default we burn no D (stage 1)
-                if (stage==2){ // burning at fixed Tc, lum_D set to keep the central temperature constant
-                    double dlogbetaperbetac_dlogm = ps_dlogbetaperbetac_dlogm(mass, r, n_ad, beta, rhoc, Pc, Tc); // ratio of gas pressure to total pressure at the center
-                    lum_D = lum_int + lum_acc + lum_I + (All.G*mass*mdot/r) * ( 1.-fk-0.5*ag*beta * (1.+dlogbetaperbetac_dlogm) ); // Eq B8 of Offner 2009
-                    // Change in available deuterium mass
-                    dm_D = dm_curr - dt_curr * (lum_D*UNIT_LUM_IN_SOLAR/15.) * (1e-5) / (UNIT_MASS_IN_SOLAR/UNIT_TIME_IN_YR) ;
-                } else if(stage>2){
-                    // burning all accreted D for stages above 2
-                    lum_D = (15./UNIT_LUM_IN_SOLAR) * (mdot_m_solar_per_year/(1e-5));
-                    dm_D = 0; // all new D is burned
-                    mass_D = 0; // no D left in protostar
+            double dt_left = dt;
+            mass = m_initial;
+            while(dt_left > 0) {
+
+                // choose a trial step from the current stellar state
+                lum_int = DMAX(ps_lum_Hayashi_BB(mass, r), ps_lum_MS(mass));
+                lum_acc = f_acc*fk*All.G*mass*mdot/r;
+                double dt_curr = DMIN(dt_left, max_rel_dr*DMIN(All.G*mass*mass/r/(lum_int+lum_acc+lum_I), 0.1*mass/(fabs(dm/dt)+MIN_REAL_NUMBER)));
+                double mass_before = mass, dm_curr = dm*(dt_curr/dt);
+                while(1) {
+                    double dm_rel = dm_curr/mass_before;
+                    mass = mass_before + dm_curr;
+                    // Get properties for stellar evolution
+                    lum_Hayashi = ps_lum_Hayashi_BB(mass, r); // blackbody radiation assuming the star follows the Hayashi track
+                    lum_MS = ps_lum_MS(mass); // luminosity of main sequence star of m mass
+                    lum_int = DMAX(lum_Hayashi, lum_MS); // luminosity from the stellar interior
+                    lum_acc = f_acc*fk*All.G*mass*mdot/r; // accretion luminosity
+                    t_KH = All.G*mass*mass/r/lum_int; // Kelvin-Helmholtz time
+                    t_acc = mass/(mdot + MIN_REAL_NUMBER);
+                    n_ad = ps_polytropic_index(stage, mdot, mass); // get polytropic index. Note: ORION does not seem to update this, but I think it is worthwhile as mdot can vary over time
+                    ag = 3.0/(5.0-n_ad); //shorthand
+                    rhoc = ps_rhoc(mass, n_ad, r); // central density
+                    Pc = ps_Pc(mass, n_ad, r); // central pressure
+                    Tc = ps_Tc(rhoc,Pc); // central temperature
+                    beta = ps_beta(mass, n_ad, rhoc, Pc); // mean ratio of gas pressure to total pressure
+                    dlogbeta_dlogm = ps_dlogbeta_dlogm(mass, r, n_ad, beta, rhoc, Pc); // d log beta/ d log m
+                    // Calculate luminosity from D burning
+                    lum_D = 0; // luminosity from D burning
+                    dm_D = dm_curr; // by default we burn no D (stage 1)
+                    if (stage==2){ // burning at fixed Tc, lum_D set to keep the central temperature constant
+                        double dlogbetaperbetac_dlogm = ps_dlogbetaperbetac_dlogm(mass, r, n_ad, beta, rhoc, Pc, Tc); // ratio of gas pressure to total pressure at the center
+                        lum_D = lum_int + lum_acc + lum_I + (All.G*mass*mdot/r) * ( 1.-fk-0.5*ag*beta * (1.+dlogbetaperbetac_dlogm) ); // Eq B8 of Offner 2009
+                        // Change in available deuterium mass
+                        dm_D = dm_curr - dt_curr * (lum_D*UNIT_LUM_IN_SOLAR/15.) * (1e-5) / (UNIT_MASS_IN_SOLAR/UNIT_TIME_IN_YR) ;
+                    } else if(stage>2){
+                        // burning all accreted D for stages above 2
+                        lum_D = (15./UNIT_LUM_IN_SOLAR) * (mdot_m_solar_per_year/(1e-5));
+                        dm_D = 0; // all new D is burned
+                        mass_D = 0; // no D left in protostar
+                    }
+                    // Let's evolve the stellar radius
+                    //		double dlogr_dlogm = 2 - 2/(ag*beta)*(1-fk) + dlogbeta_dlogm - 2*r/(ag*beta*All.G*mass*mdot) * (lum_int+lum_acc+lum_I-lum_D); // Nakano 2000 Eq (8); this gives the slope of the M vs. R diagram
+                    //		rel_dr = dlogr_dlogm * dm_rel; // multiply by dlogm = dm/m to get dlogr
+                    double rel_dr = (2 - 2/(ag*beta)*(1-fk) + dlogbeta_dlogm) * dm_rel - 2*r*dt_curr/(ag*beta*All.G*mass*mass) * (lum_int+lum_acc+lum_I-lum_D);
+
+                    // reject oversized radius updates before changing the stellar state
+                    if(!isfinite(rel_dr) || !(dt_curr > 0) || dt_left-dt_curr == dt_left) {
+                        printf("Invalid protostellar substep: task=%d ID=%llu time=%.17g mass=%.17g radius=%.17g dt=%.17g rel_dr=%.17g\n", ThisTask, (unsigned long long)P[n].ID, All.Time, mass, r, dt_curr, rel_dr);
+                        fflush(stdout); terminate("Invalid protostellar substep");
+                    }
+                    if(fabs(rel_dr) > max_rel_dr) {dt_curr *= 0.5; dm_curr *= 0.5; continue;}
+                    r *= exp(rel_dr);
+                    mass_D += dm_D;
+                    dt_left -= dt_curr;
+                    break;
                 }
-                // Let's evolve the stellar radius
-                //		double dlogr_dlogm = 2 - 2/(ag*beta)*(1-fk) + dlogbeta_dlogm - 2*r/(ag*beta*All.G*mass*mdot) * (lum_int+lum_acc+lum_I-lum_D); // Nakano 2000 Eq (8); this gives the slope of the M vs. R diagram
-                //		rel_dr = dlogr_dlogm * dm_rel; // multiply by dlogm = dm/m to get dlogr
-                double rel_dr = (2 - 2/(ag*beta)*(1-fk) + dlogbeta_dlogm) * dm_rel - 2*r*dt_curr/(ag*beta*All.G*mass*mass) * (lum_int+lum_acc+lum_I-lum_D);
-                r *= exp(rel_dr); // interpolates properly to large timestep, but subcycling should limit it
-                mass_D += dm_D;
             }
             
             // Update stellar properties
