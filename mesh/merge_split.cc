@@ -341,6 +341,48 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
         if(reff_pc < rin_pc[k]) { feff *= pow(reff_pc / rin_pc[k], -slopes[k]); }
     }
 
+#if defined(NORMALIZED_PLATEAU_MASS_RESOLUTION)
+    const double f_plateau = [&]() -> double
+    {
+        double f_keep = 1.0;
+        for(int k=0; k<nphases; k++)
+        {
+            if(NORMALIZED_PLATEAU_R_KEEP_PC < rout_pc[k]) {f_keep *= pow(NORMALIZED_PLATEAU_R_KEEP_PC / rout_pc[k], slopes[k]);}
+            if(NORMALIZED_PLATEAU_R_KEEP_PC < rin_pc[k]) {f_keep *= pow(NORMALIZED_PLATEAU_R_KEEP_PC / rin_pc[k], -slopes[k]);}
+        }
+        return f_keep;
+    }();
+
+    const auto normalized_plateau_factor = [&](double r_eval_pc, double f_eval) -> double
+    {
+        if(!(r_eval_pc > 0.0) || !isfinite(r_eval_pc) || !(f_eval > 0.0) || !isfinite(f_eval)) {return f_eval;}
+
+        const double r_keep_pc = NORMALIZED_PLATEAU_R_KEEP_PC;
+        const double r_plateau_end_pc = NORMALIZED_PLATEAU_END_PC;
+        const double r_anchor_pc = NORMALIZED_PLATEAU_OUTER_ANCHOR_PC;
+        const double outer_slope = NORMALIZED_PLATEAU_OUTER_SLOPE;
+
+        if(!(r_keep_pc > 0.0) || !(r_plateau_end_pc > r_keep_pc) || !(r_anchor_pc > r_plateau_end_pc) ||
+           !isfinite(r_keep_pc) || !isfinite(r_plateau_end_pc) || !isfinite(r_anchor_pc) || !isfinite(outer_slope))
+        {
+            return f_eval;
+        }
+
+        if(r_eval_pc <= r_keep_pc) {return f_eval;}
+        if(r_eval_pc < r_plateau_end_pc) {return f_plateau;}
+
+        /* Reconnect to GIZMO's historical normalization at the outer anchor.
+         * With the current CAAR macros this means f_new(4000 pc)=f_old(4000 pc)=1,
+         * so no global MaxMassForParticleSplit or UNIFORM_RESOLUTION_MULTIPLIER
+         * compensation is needed.
+         */
+        return f_plateau * pow(r_eval_pc / r_plateau_end_pc, outer_slope);
+    };
+
+    ftarget = normalized_plateau_factor(r_pc, ftarget);
+    feff = normalized_plateau_factor(reff_pc, feff);
+#endif
+
     // 3) compute final f0 with "leaky" floor from reff to rsink
     if(r_pc > reff_pc) {return ftarget;}
 

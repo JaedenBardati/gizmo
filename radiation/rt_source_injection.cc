@@ -179,6 +179,7 @@ int rt_sourceinjection_evaluate(int target, int mode, int *exportflag, int *expo
 #else
                 wk = (1 - r2*hinv*hinv) / local.KernelSum_Around_RT_Source;
 #endif
+                if(wk <= 0) {continue;} /* Guard against non-overlap pairs producing negative source-injection weights. */
                 
 #ifdef RT_EVOLVE_INTENSITIES /* additional weights needed to deal with directionality if we are using the intensity evolution module */
                 int kx; double angle_wt_Inu_sum=0, angle_wt_Inu[N_RT_INTENSITY_BINS];

@@ -7,6 +7,47 @@
 #include "../core/proto.h"
 #include "./cooling.h"
 
+#ifdef DEBUG_NEGATIVE_RT_ONE_SHOT
+static void debug_negative_rt_one_shot_cooling(const char *tag, int i)
+{
+    if(i < 0 || P[i].Type != 0) {return;}
+#ifdef RADTRANSFER
+    int k;
+    for(k = 0; k < N_RT_FREQ_BINS; k++)
+    {
+        if(CellP[i].Rad_E_gamma[k] >= 0) {continue;}
+        printf("\nDEBUG_NEGATIVE_RT_ONE_SHOT tag=%s task=%d i=%d ID=%lld Time=%g Ti_Current=%lld bad_bin=%d\n",
+               tag, ThisTask, i, (long long)P[i].ID, All.Time, (long long)All.Ti_Current, k);
+        printf("  basic Mass=%g KernelRadius=%g Density=%g InternalEnergy=%g InternalEnergyPred=%g Pressure=%g dt=%g\n",
+               P[i].Mass, P[i].KernelRadius, CellP[i].Density, CellP[i].InternalEnergy,
+               CellP[i].InternalEnergyPred, CellP[i].Pressure, GET_PARTICLE_TIMESTEP_IN_PHYSICAL(i));
+        printf("  chemistry Ne=%g", CellP[i].Ne);
+#ifdef RT_CHEM_PHOTOION
+        printf(" HI=%g HII=%g HI_plus_HII=%g", CellP[i].HI, CellP[i].HII, CellP[i].HI + CellP[i].HII);
+#endif
+#ifdef RT_CHEM_PHOTOION_HE
+        printf(" HeI=%g HeII=%g HeIII=%g yhelium=%g", CellP[i].HeI, CellP[i].HeII, CellP[i].HeIII, yhelium(i));
+#endif
+        printf("\n");
+        int kk;
+        for(kk = 0; kk < N_RT_FREQ_BINS; kk++)
+        {
+            printf("  rt bin=%d Rad_E_gamma=%g", kk, CellP[i].Rad_E_gamma[kk]);
+#ifdef RT_EVOLVE_ENERGY
+            printf(" Rad_E_gamma_Pred=%g Dt_Rad_E_gamma=%g", CellP[i].Rad_E_gamma_Pred[kk], CellP[i].Dt_Rad_E_gamma[kk]);
+#endif
+#ifdef RT_EVOLVE_FLUX
+            printf(" Rad_Flux=(%g,%g,%g)", CellP[i].Rad_Flux[kk][0], CellP[i].Rad_Flux[kk][1], CellP[i].Rad_Flux[kk][2]);
+#endif
+            printf("\n");
+        }
+        fflush(stdout);
+        endrun(130020);
+    }
+#endif
+}
+#endif
+
 /*!
  * This file contains the routines for optically-thin cooling (generally aimed towards simulations of the ISM,
  *   galaxy formation, and cosmology). A wide range of heating/cooling processes are included, including
@@ -103,6 +144,9 @@ void do_the_cooling_for_particle(int i)
     if((dtime>0)&&(P[i].Mass>0)&&(P[i].Type==0))  // upon start-up, need to protect against dt==0 //
     {
         double uold = DMAX(All.MinEgySpec, CellP[i].InternalEnergy); int k; k=0; ne_in=0; ne_out=0;
+#ifdef DEBUG_NEGATIVE_RT_ONE_SHOT
+        debug_negative_rt_one_shot_cooling("cooling_entry", i);
+#endif
 #if defined(GALSF_FB_FIRE_RT_HIIHEATING)
 #if (GALSF_FB_FIRE_STELLAREVOLUTION <= 2)
         double uion=HIIRegion_Temp/(0.59*(5./3.-1.)*U_TO_TEMP_UNITS); if(CellP[i].DelayTimeHII>0) {if(uold<uion) {uold=uion;}} /* u_old should be >= ionized temp if used here [unless using newer model] */
@@ -157,6 +201,9 @@ void do_the_cooling_for_particle(int i)
         ne_in = CellP[i].Ne; ne_out = ne_in; /* this variable is not defined if chimes is on */
 #endif
         unew = DoCooling(uold, CellP[i].Density * All.cf_a3inv, dtime, ne_in, &ne_out, i);
+#ifdef DEBUG_NEGATIVE_RT_ONE_SHOT
+        debug_negative_rt_one_shot_cooling("cooling_return", i);
+#endif
 #if !defined(CHIMES)
         CellP[i].Ne = ne_out; /* update the free electron variable */
 #endif

@@ -122,6 +122,9 @@ void rt_diffusion_cg_solve(void)
             {
                 XVec[k][j] = CellP[j].Rad_E_gamma[k] * CellP[j].Density / (1.e-37+P[j].Mass); /* define the coefficients: note we need energy densities for this operation */
                 CellP[j].Rad_E_gamma[k] += dt * CellP[j].Rad_Je[k]; /* -then- add the source terms */
+#ifdef DEBUG_NEGATIVE_RT_ONE_SHOT
+                debug_negative_rt_one_shot_cg("cg_after_source_add", j);
+#endif
             }
  
     /* do a first pass of our 'workhorse' routine, which lets us pre-condition to improve convergence */
@@ -189,6 +192,9 @@ void rt_diffusion_cg_solve(void)
         if(P[j].Type == 0)
             for(k = 0; k < N_RT_FREQ_BINS; k++)
                 CellP[j].Rad_E_gamma[k] = DMAX(XVec[k][j],0) * P[j].Mass / CellP[j].Density; // convert back to an absolute energy, instead of a density //
+#ifdef DEBUG_NEGATIVE_RT_ONE_SHOT
+                debug_negative_rt_one_shot_cg("cg_after_solution_writeback", j);
+#endif
     
     /* free memory */
     free(Diag2);

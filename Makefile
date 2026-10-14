@@ -276,6 +276,32 @@ HDF5INCL = -I$(HDF5_BASE)/include -DH5_USE_16_API
 HDF5LIB  = -L$(HDF5_BASE)/lib -Xlinker -R -Xlinker $(HDF5_BASE)/lib -lhdf5 -lz
 endif
 
+#----------------------------------------------------------------------------------------------
+ifeq ($(SYSTYPE),"Frontier")
+CC       = CC
+CXX      = CC -std=gnu++20
+FC       = ftn -nofor_main
+OPTIMIZE = -g -march=znver3 -O3 -ffast-math -flto -Wno-unknown-pragmas -Wall -Wno-format-security -fopenmp
+
+ifeq (CHIMES,$(findstring CHIMES,$(CONFIGVARS)))
+CHIMESINCL =
+CHIMESLIBS =
+endif
+
+$(info gsl root is at $(OLCF_GSL_ROOT))
+
+GSL_INCL = -I$(OLCF_GSL_ROOT)/include
+GSL_LIBS = -L$(OLCF_GSL_ROOT)/lib -lgsl -lgslcblas
+FFTW_INCL= -I$(FFTW_INC)
+FFTW_LIBS= -L$(FFTW_LIB)
+HDF5INCL = -I$(HDF5_ROOT)/include -DH5_USE_16_API
+HDF5LIB  = -L$(HDF5_ROOT)/lib -lhdf5 -lz
+MPICHLIB = #
+
+OPT += -DHDF5_DISABLE_VERSION_CHECK
+
+endif
+
 
 #----------------------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------------------
