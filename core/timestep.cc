@@ -39,6 +39,23 @@ void find_timesteps(void)
     int special_particle_active_with_this_index[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM], j_specialpartical_counter=0;
     double xyz_local[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM][3], xyz_global[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM][3], special_particle_mass_local[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM]={0}, special_particle_mass_global[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM]={0};
     for(i=0;i<SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM;i++) {special_particle_active_with_this_index[i] = -1; xyz_local[i][0]=xyz_local[i][1]=xyz_local[i][2] = -MAX_REAL_NUMBER;}
+
+#if (SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM > 1) && !defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM_TAG_ANCHOR)
+    // assign stable anchor slots by global particle id, including inactive particles on restart
+    static MyIDType special_particle_ids[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM];
+    static int special_particle_ids_initialized=0;
+    if(!special_particle_ids_initialized)
+    {
+        for(int k=0;k<SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM;k++)
+        {
+            MyIDType id_local=~(MyIDType)0;
+            for(i=0;i<NumPart;i++) {if(is_particle_a_special_zoom_target(i) && P[i].Mass > 0 && (k==0 || P[i].ID > special_particle_ids[k-1]) && P[i].ID < id_local) {id_local=P[i].ID;}}
+            MPI_Allreduce(&id_local, &special_particle_ids[k], 1, MPI_UNSIGNED_LONG_LONG, MPI_MIN, MPI_COMM_WORLD);
+            if(special_particle_ids[k] == ~(MyIDType)0) {if(ThisTask==0) {printf("Expected %d distinct special particles, found only %d\n", SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM, k);} endrun(1);}
+        }
+        special_particle_ids_initialized=1;
+    }
+#endif
 #endif
 
     if(All.HighestActiveTimeBin == All.HighestOccupiedTimeBin || dt_displacement == 0)
@@ -80,7 +97,7 @@ void find_timesteps(void)
     for(i = FirstActiveParticle, ti_min = TIMEBASE; i >= 0; i = NextActiveParticle[i])
     {
 #if defined(FORCE_EQUAL_TIMESTEPS)
-        ti_step = get_timestep(i, &aphys, 0);
+        ti_step = (integertime)(((double) get_timestep(i, &aphys, 0)) / TIMESTEP_DILATION_FACTOR(i,0)); // get the timestep for this particle, and apply any dilation factor -- we're trying to find the minimum active BIN, not the minimum active timestep in float
 #elif defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
         if(is_particle_a_special_zoom_target(i)==0) {ti_step = P[i].dt_step;} else {ti_step = TIMEBASE;} // set the source particle to have a timestep no more than 4 bins larger than the previous smallest active particle/cell bin timestep
 #endif
@@ -96,7 +113,7 @@ void find_timesteps(void)
     integertime ti_min_glob, ti_max_glob;
     MPI_Allreduce(&ti_step, &ti_min_glob, 1, MPI_TYPE_TIME, MPI_MIN, MPI_COMM_WORLD);
     MPI_Allreduce(&ti_stepmax, &ti_max_glob, 1, MPI_TYPE_TIME, MPI_MAX, MPI_COMM_WORLD);
-#if defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
+#if !defined(FORCE_EQUAL_TIMESTEPS) && defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
 #if defined(USE_TIMESTEP_DILATION_FOR_ZOOMS)
     ti_min_glob <<= 2; // 2^N times min timestep - shift to N bins higher
 #else
@@ -111,13 +128,13 @@ void find_timesteps(void)
     for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i])
     {
 #ifdef FORCE_EQUAL_TIMESTEPS
-        ti_step = ti_min_glob;
+        ti_step = ti_min_glob; /* note that the dilation factor is already applied to ti_min_glob above - re-applying here would double-count it */
 #else
         ti_step = get_timestep(i, &aphys, 0);
-#endif
         ti_step = (integertime)(((double)ti_step) / TIMESTEP_DILATION_FACTOR(i,0));
+#endif
         
-#if defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
+#if !defined(FORCE_EQUAL_TIMESTEPS) && defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
         if(ti_step < 0) {ti_step = ti_min_glob;}
         if(is_particle_a_special_zoom_target(i)) {
             if(ti_step > ti_min_glob) {ti_step = ti_min_glob;}
@@ -224,7 +241,14 @@ void find_timesteps(void)
 #endif
         
 #ifdef SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM
-        if(is_particle_a_special_zoom_target(i) && P[i].Mass > 0) {xyz_local[j_specialpartical_counter][0]=P[i].Pos[0]; xyz_local[j_specialpartical_counter][1]=P[i].Pos[1]; xyz_local[j_specialpartical_counter][2]=P[i].Pos[2]; special_particle_active_with_this_index[j_specialpartical_counter]=i; special_particle_mass_local[j_specialpartical_counter]=P[i].Mass; j_specialpartical_counter++;} // active on this processor, set
+        if(is_particle_a_special_zoom_target(i) && P[i].Mass > 0)
+        {
+#if (SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM > 1) && !defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM_TAG_ANCHOR)
+            for(j_specialpartical_counter=0;j_specialpartical_counter<SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM;j_specialpartical_counter++) {if(P[i].ID == special_particle_ids[j_specialpartical_counter]) {break;}}
+            if(j_specialpartical_counter == SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM) {printf("Unmapped special particle ID=%llu on task=%d\n", (unsigned long long)P[i].ID, ThisTask); endrun(1);}
+#endif
+            xyz_local[j_specialpartical_counter][0]=P[i].Pos[0]; xyz_local[j_specialpartical_counter][1]=P[i].Pos[1]; xyz_local[j_specialpartical_counter][2]=P[i].Pos[2]; special_particle_active_with_this_index[j_specialpartical_counter]=i; special_particle_mass_local[j_specialpartical_counter]=P[i].Mass; j_specialpartical_counter++; // active on this processor, set
+        }
 #endif
         
     }
@@ -1250,6 +1274,9 @@ int get_timestep_bin(integertime ti_step)
 #ifdef WAKEUP
 void process_wake_ups(void)
 {
+#ifdef FORCE_EQUAL_TIMESTEPS
+    return; /* no wakeups if all particles are on the same timestep */
+#endif
     int i, n, max_time_bin_active, bin, binold, prev, next; long long ntot;
     integertime dt_bin, ti_next_for_bin, ti_next_kick, ti_next_kick_global;
 

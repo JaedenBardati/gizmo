@@ -963,6 +963,10 @@ void init(void)
 #ifdef MERGESPLIT_HARDCODE_MIN_MASS
         All.MinMassForParticleMerger = MERGESPLIT_HARDCODE_MIN_MASS;
 #endif
+#ifdef UNIFORM_RESOLUTION_MULTIPLIER
+        All.MaxMassForParticleSplit = All.MaxMassForParticleSplit / UNIFORM_RESOLUTION_MULTIPLIER;  // uniform resolution multiplier < 1 is downsampling/merging (decrease in resolution, increase in delta m), > 1 is upsampling/splitting (increase in resolution, decrease in delta m), uniform over all particles
+        All.MinMassForParticleMerger = All.MinMassForParticleMerger / UNIFORM_RESOLUTION_MULTIPLIER; 
+#endif
 
 #ifdef SINGLE_STAR_SINK_DYNAMICS /* Get mean gas mass, used in various subroutines */
         double mpi_mass_tot; long mpi_Ngas; long Ngas_l = (long) N_gas;
