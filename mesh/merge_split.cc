@@ -388,6 +388,7 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
 
     if(!found_stage)
     {
+        reff_pc = rin_pc[nphases - 1];
         refinement_stage = 3;
         refinement_phase = nphases - 1;
     }
