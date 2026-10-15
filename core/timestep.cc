@@ -39,6 +39,23 @@ void find_timesteps(void)
     int special_particle_active_with_this_index[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM], j_specialpartical_counter=0;
     double xyz_local[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM][3], xyz_global[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM][3], special_particle_mass_local[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM]={0}, special_particle_mass_global[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM]={0};
     for(i=0;i<SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM;i++) {special_particle_active_with_this_index[i] = -1; xyz_local[i][0]=xyz_local[i][1]=xyz_local[i][2] = -MAX_REAL_NUMBER;}
+
+#if (SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM > 1) && !defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM_TAG_ANCHOR)
+    // assign stable anchor slots by global particle id, including inactive particles on restart
+    static MyIDType special_particle_ids[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM];
+    static int special_particle_ids_initialized=0;
+    if(!special_particle_ids_initialized)
+    {
+        for(int k=0;k<SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM;k++)
+        {
+            MyIDType id_local=~(MyIDType)0;
+            for(i=0;i<NumPart;i++) {if(is_particle_a_special_zoom_target(i) && P[i].Mass > 0 && (k==0 || P[i].ID > special_particle_ids[k-1]) && P[i].ID < id_local) {id_local=P[i].ID;}}
+            MPI_Allreduce(&id_local, &special_particle_ids[k], 1, MPI_UNSIGNED_LONG_LONG, MPI_MIN, MPI_COMM_WORLD);
+            if(special_particle_ids[k] == ~(MyIDType)0) {if(ThisTask==0) {printf("Expected %d distinct special particles, found only %d\n", SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM, k);} endrun(1);}
+        }
+        special_particle_ids_initialized=1;
+    }
+#endif
 #endif
 
     if(All.HighestActiveTimeBin == All.HighestOccupiedTimeBin || dt_displacement == 0)
@@ -224,7 +241,14 @@ void find_timesteps(void)
 #endif
         
 #ifdef SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM
-        if(is_particle_a_special_zoom_target(i) && P[i].Mass > 0) {xyz_local[j_specialpartical_counter][0]=P[i].Pos[0]; xyz_local[j_specialpartical_counter][1]=P[i].Pos[1]; xyz_local[j_specialpartical_counter][2]=P[i].Pos[2]; special_particle_active_with_this_index[j_specialpartical_counter]=i; special_particle_mass_local[j_specialpartical_counter]=P[i].Mass; j_specialpartical_counter++;} // active on this processor, set
+        if(is_particle_a_special_zoom_target(i) && P[i].Mass > 0)
+        {
+#if (SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM > 1) && !defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM_TAG_ANCHOR)
+            for(j_specialpartical_counter=0;j_specialpartical_counter<SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM;j_specialpartical_counter++) {if(P[i].ID == special_particle_ids[j_specialpartical_counter]) {break;}}
+            if(j_specialpartical_counter == SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM) {printf("Unmapped special particle ID=%llu on task=%d\n", (unsigned long long)P[i].ID, ThisTask); endrun(1);}
+#endif
+            xyz_local[j_specialpartical_counter][0]=P[i].Pos[0]; xyz_local[j_specialpartical_counter][1]=P[i].Pos[1]; xyz_local[j_specialpartical_counter][2]=P[i].Pos[2]; special_particle_active_with_this_index[j_specialpartical_counter]=i; special_particle_mass_local[j_specialpartical_counter]=P[i].Mass; j_specialpartical_counter++; // active on this processor, set
+        }
 #endif
         
     }
