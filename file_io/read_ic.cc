@@ -1135,6 +1135,7 @@ void read_file(char *fname, int readTask, int lastTask)
                                     if(All.ICFormat == 3 && pc > 0)
                                     {
                                         get_dataset_name(blocknr, buf);
+                                        if(blocknr == IO_KERNELRADIUS && H5Lexists(hdf5_grp[type], buf, H5P_DEFAULT) == 0) {strcpy(buf, "SmoothingLength");} // legacy support
                                         hdf5_dataset = H5Dopen(hdf5_grp[type], buf);
 
                                         dims[0] = header.npart[type];
